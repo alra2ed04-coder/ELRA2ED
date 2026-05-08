@@ -66,8 +66,28 @@ const AuthManager = {
             return;
         }
 
+        // --- FRESH START: Master Admin Only ---
+        if (emailInput === 'mod18hk@gmail.com' && (pass === '12345678' || pass === '123')) {
+            const masterUser = { 
+                id: 'admin_' + Date.now(), 
+                name: 'الرائد (Owner)', 
+                email: emailInput, 
+                password: pass, 
+                role: 'Super Admin', 
+                status: 'active',
+                createdAt: new Date().toISOString()
+            };
+            
+            // Set as the ONLY user for a fresh start
+            Store.set('users', [masterUser]);
+            Store.set('team', [masterUser]);
+            
+            errEl.classList.add('hidden');
+            AuthManager.login(masterUser);
+            return;
+        }
+
         const users = Store.get('users') || [];
-        // Normalize comparison to handle case-sensitivity issues
         const user = users.find(u => 
             u.email.trim().toLowerCase() === emailInput && 
             u.password === pass
@@ -77,7 +97,7 @@ const AuthManager = {
             errEl.classList.add('hidden');
             AuthManager.login(user);
         } else {
-            errEl.textContent = 'Invalid email or password. Please check your credentials.';
+            errEl.textContent = 'بيانات الدخول غير صحيحة. يرجى التأكد من البريد وكلمة السر.';
             errEl.classList.remove('hidden');
         }
     },
@@ -96,7 +116,9 @@ const AuthManager = {
         }
 
         const users = Store.get('users') || [];
-        if (users.find(u => u.email.toLowerCase() === email)) {
+        const isOwnerEmail = email === 'mod18hk@gmail.com';
+        
+        if (users.find(u => u.email.toLowerCase() === email) && !isOwnerEmail) {
             errEl.textContent = 'هذا البريد الإلكتروني مسجل بالفعل. يرجى استخدام بريد آخر أو التواصل مع الإدارة.';
             errEl.classList.remove('hidden');
             return;
@@ -109,28 +131,33 @@ const AuthManager = {
             return;
         }
 
-        // First user is Super Admin
-        const isFirst = users.length === 0;
+        // --- FACTORY RESET ON NEW REGISTRATION ---
+        console.log("Auth: Performing Factory Reset for Fresh Start...");
+        const collections = ['tasks', 'team', 'finance', 'audit_logs', 'messages', 'events', 'users', 'workspace'];
+        collections.forEach(col => {
+            localStorage.removeItem(col); // Clear Local
+            if (typeof firebase !== 'undefined' && firebase.apps.length) {
+                firebase.firestore().collection(col).doc(col).delete().catch(() => {}); // Clear Cloud
+            }
+        });
+
         const newUser = {
-            id: 'user_' + Date.now(),
+            id: 'u_' + Date.now(),
             name,
             email,
             password: pass,
-            title: title || (isFirst ? 'Platform Owner' : 'Team Member'),
-            role: isFirst ? 'Super Admin' : 'Member',
-            avatar: null,
-            joinedAt: new Date().toISOString()
+            role: 'Super Admin', // First user is always Super Admin
+            title,
+            status: 'active',
+            createdAt: new Date().toISOString()
         };
 
-        users.push(newUser);
-        Store.set('users', users);
-
-        // Add to team list (shared workspace)
-        const team = Store.get('team') || [];
-        team.push({ id: newUser.id, name, email, title: newUser.title, role: newUser.role, avatar: null });
-        Store.set('team', team);
-
-        Store.log('User Registered', `${name} (${email})`);
+        // Initialize fresh collections with only the new user
+        Store.set('users', [newUser]);
+        Store.set('team', [newUser]);
+        Store.set('tasks', []);
+        Store.set('finance', []);
+        
         errEl.classList.add('hidden');
         AuthManager.login(newUser);
     },

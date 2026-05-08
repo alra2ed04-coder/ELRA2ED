@@ -25,12 +25,28 @@ const Store = {
             const db = firebase.firestore();
             console.log('Store: Connecting to Firebase Cloud Sync...');
 
+
             // ✅ Real-time Firestore Listeners for ALL collections
             const collections = ['tasks', 'team', 'finance', 'audit_logs', 'messages', 'events', 'presence', 'users', 'workspace'];
             
             collections.forEach(collectionName => {
                 db.collection(collectionName).onSnapshot((snapshot) => {
                     if (Store._syncing) return; // Prevent loop
+
+                    // 🛠️ DATA MIGRATION BRIDGE:
+                    // If Cloud is empty but Local has data, push local to cloud!
+                    const localData = localStorage.getItem(collectionName === 'workspace' ? 'workspace' : collectionName);
+                    if (snapshot.empty && localData) {
+                        console.log(`Store: Migrating [${collectionName}] to Cloud...`);
+                        try {
+                            const parsed = JSON.parse(localData);
+                            db.collection(collectionName).doc(collectionName === 'workspace' ? 'workspace' : collectionName).set({
+                                value: parsed,
+                                updatedBy: 'migration_system',
+                                timestamp: Date.now()
+                            });
+                        } catch(e) {}
+                    }
 
                     snapshot.docChanges().forEach((change) => {
                         const key = change.doc.id;
@@ -260,6 +276,8 @@ const Store = {
         });
         if (logs.length > 200) logs.splice(200);
         Store.set('auditLogs', logs);
+    },
+
     // Test the cloud connection manually
     testCloudConnection: () => {
         if (typeof firebase === 'undefined' || !firebase.apps.length) {
