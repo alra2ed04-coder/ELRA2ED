@@ -1,0 +1,21 @@
+{
+  "name": "Al-Raed Admin Assistant",
+  "short_name": "Al-Raed",
+  "description": "Professional Administrative AI Platform",
+  "start_url": "/index.html",
+  "display": "standalone",
+  "background_color": "#f8fafc",
+  "theme_color": "#2563eb",
+  "icons": [
+    {
+      "src": "https://ui-avatars.com/api/?name=R&background=2563eb&color=fff&size=192",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "https://ui-avatars.com/api/?name=R&background=2563eb&color=fff&size=512",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

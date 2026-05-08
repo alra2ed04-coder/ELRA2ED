@@ -1,0 +1,1707 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Al-Raed Assistant Platform</title>
+    <!-- Google Fonts: Inter & Cairo -->
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Cairo:wght@400;600;700&display=swap"
+        rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="css/style.css">
+    <!-- SheetJS for Professional Excel Export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#2563eb">
+</head>
+
+<body>
+    <!-- Authentication Screen -->
+    <div id="auth-wrapper" class="auth-wrapper glass-effect">
+        <div class="auth-container">
+            <div class="auth-header">
+                <i class="fas fa-crown"></i>
+                <h2 data-original="Al-Raed Platform">Al-Raed Platform</h2>
+                <p data-original="Login to access your workspace">Login to access your workspace</p>
+            </div>
+
+            <div id="login-form" class="auth-form">
+                <p id="login-error" class="auth-error hidden"></p>
+                <div class="form-group">
+                    <label data-original="Email Address">Email Address</label>
+                    <input type="email" id="login-email" placeholder="admin@alraed.com" required>
+                </div>
+                <div class="form-group">
+                    <label data-original="Password">Password</label>
+                    <input type="password" id="login-password" placeholder="••••••••" required>
+                </div>
+                <button class="btn btn-primary w-100" id="btn-login"><i class="fas fa-sign-in-alt"></i> <span
+                        data-original="Login">Login</span></button>
+                <p class="auth-switch"><span data-original="New here?">New here?</span> <a href="#"
+                        id="switch-to-register" data-original="Create an account">Create an account</a></p>
+            </div>
+
+            <div id="register-form" class="auth-form hidden">
+                <p id="register-error" class="auth-error hidden"></p>
+                <div class="form-group">
+                    <label><span data-original="Full Name">Full Name</span> <span
+                            style="color:var(--danger)">*</span></label>
+                    <input type="text" id="reg-name" data-original-ph="e.g., Ahmed Ali" placeholder="Ahmed Ali"
+                        required>
+                </div>
+                <div class="form-group">
+                    <label><span data-original="Email Address">Email Address</span> <span
+                            style="color:var(--danger)">*</span></label>
+                    <input type="email" id="reg-email" data-original-ph="ahmed@example.com"
+                        placeholder="ahmed@example.com" required>
+                </div>
+                <div class="form-group">
+                    <label data-original="Job Title">Job Title</label>
+                    <input type="text" id="reg-title" data-original-ph="e.g., Project Manager"
+                        placeholder="e.g. Project Manager">
+                </div>
+                <div class="form-group">
+                    <label><span data-original="Password">Password</span> <span
+                            style="color:var(--danger)">*</span></label>
+                    <input type="password" id="reg-password" placeholder="••••••••" required>
+                </div>
+                <button class="btn btn-primary w-100" id="btn-register"><i class="fas fa-user-plus"></i> <span
+                        data-original="Create Account">Create Account</span></button>
+                <p class="auth-switch"><span data-original="Already have an account?">Already have an account?</span> <a
+                        href="#" id="switch-to-login" data-original="Login here">Login here</a></p>
+            </div>
+        </div>
+    </div>
+
+    <div class="app-container hidden" id="app-wrapper">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="logo">
+                <i class="fas fa-crown"></i>
+                <h2>Al-Raed</h2>
+            </div>
+            <nav class="main-nav">
+                <a href="#dashboard" class="nav-item active" data-target="dashboard"><i class="fas fa-chart-line"></i>
+                    <span data-original="Dashboard">Dashboard</span></a>
+                <a href="#tasks" class="nav-item" data-target="tasks"><i class="fas fa-tasks"></i>
+                    <span data-original="Tasks">Tasks</span></a>
+                <a href="#team" class="nav-item admin-only" data-target="team"><i class="fas fa-users"></i> <span
+                        data-original="Team">Team</span></a>
+                <a href="#chat-section" class="nav-item" data-target="chat-section"><i class="fas fa-comments"></i>
+                    <span data-original="Chat">Chat</span></a>
+                <a href="#calendar" class="nav-item" data-target="calendar"><i class="fas fa-calendar-alt"></i>
+                    <span data-original="Calendar">Calendar</span></a>
+                <a href="#finance" class="nav-item admin-only" data-target="finance"><i class="fas fa-wallet"></i>
+                    <span data-original="Finance">Finance</span></a>
+                <a href="#reports" class="nav-item admin-only" data-target="reports"><i class="fas fa-file-alt"></i>
+                    <span data-original="Reports">Reports</span></a>
+                <a href="#drive" class="nav-item" data-target="drive"><i class="fas fa-cloud"></i>
+                    <span data-original="Cloud Drive">Cloud Drive</span></a>
+                <a href="#settings" class="nav-item" data-target="settings"><i class="fas fa-cog"></i>
+                    <span data-original="Settings">Settings</span></a>
+                <a href="#support" class="nav-item member-only" data-target="support"><i class="fas fa-headset"></i>
+                    <span data-original="Help Desk">Help Desk</span></a>
+                <a href="#profile" class="nav-item" data-target="profile"><i class="fas fa-user-circle"></i> <span
+                        data-original="My Profile">My Profile</span></a>
+                <a href="#projects" class="nav-item" data-target="projects"><i class="fas fa-project-diagram"></i>
+                    <span data-original="Projects">Projects</span></a>
+                <a href="#clients" class="nav-item" data-target="clients"><i class="fas fa-user-tie"></i>
+                    <span data-original="Clients">Clients</span></a>
+                <a href="#inventory" class="nav-item admin-only" data-target="inventory"><i class="fas fa-boxes"></i>
+                    <span data-original="Inventory">Inventory</span></a>
+                <a href="#wiki" class="nav-item" data-target="wiki"><i class="fas fa-book-open"></i>
+                    <span data-original="Knowledge Base">Knowledge Base</span></a>
+                <a href="#admin-panel" class="nav-item admin-only" data-target="admin-panel"><i
+                        class="fas fa-user-shield"></i>
+                    <span data-original="Admin Panel">Admin Panel</span></a>
+            </nav>
+
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <header class="topbar">
+                <div class="menu-toggle" id="menu-toggle">
+                    <i class="fas fa-bars"></i>
+                </div>
+                <div class="search-bar">
+                    <i class="fas fa-search"></i>
+                    <input type="text" placeholder="Search tasks, team, messages..." data-original="Search tasks, team, messages...">
+                </div>
+                <div class="user-profile">
+                    <div class="notifications" id="notif-toggle" style="position:relative;">
+                        <i class="fas fa-bell"></i>
+                        <span class="badge" id="notif-badge" style="display:none;">0</span>
+                        <div class="notifications-dropdown hidden glass-effect" id="notif-dropdown">
+                            <div class="notif-header">
+                                <h3 data-original="Notifications">Notifications</h3>
+                                <button id="mark-all-read" class="btn-text" data-original="Mark all as read">Mark all as read</button>
+                            </div>
+                            <div class="notif-list" id="notif-list"></div>
+                        </div>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:0.75rem;cursor:pointer;" id="topbar-user"
+                        onclick="document.querySelector('.nav-item[data-target=profile]').click()">
+                        <img src="" alt="User" class="avatar" id="current-user-avatar">
+                        <div style="line-height:1.2;">
+                            <div class="username" id="current-user-name">Admin</div>
+                            <div style="font-size:0.7rem;color:var(--text-secondary);" id="current-user-role">Role</div>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <div class="content-wrapper">
+                <!-- Dashboard View -->
+                <section id="dashboard" class="view-section active">
+                    <div id="greeting-box" style="margin-bottom:2rem;">
+                        <h1 id="view-title" data-original="Dashboard Overview">Dashboard Overview</h1>
+                        <p id="view-subtitle"><span data-original="Welcome back">Welcome back</span>, <span
+                                id="dash-user-name">Leader</span>. <span
+                                data-original="Here is your platform summary">Here is your platform summary</span></p>
+                    </div>
+
+                    <!-- Quick Action Bar -->
+                    <div class="quick-action-bar">
+                        <button class="quick-action-btn"
+                            onclick="document.querySelector('.nav-item[data-target=tasks]').click(); document.getElementById('btn-add-task').click();">
+                            <i class="fas fa-plus-circle"></i> <span data-original="New Task">New Task</span>
+                        </button>
+                        <button class="quick-action-btn"
+                            onclick="document.querySelector('.nav-item[data-target=projects]').click(); ProjectsManager.openModal();">
+                            <i class="fas fa-project-diagram"></i> <span data-original="New Project">New Project</span>
+                        </button>
+                        <button class="quick-action-btn admin-only" onclick="FinanceManager.openModal('expense')">
+                            <i class="fas fa-minus-circle"></i> <span data-original="Add Expense">Add Expense</span>
+                        </button>
+                        <button class="quick-action-btn"
+                            onclick="document.querySelector('.nav-item[data-target=clients]').click(); ClientsManager.openModal();">
+                            <i class="fas fa-user-plus"></i> <span data-original="New Client">New Client</span>
+                        </button>
+                        <button class="quick-action-btn"
+                            onclick="document.querySelector('.nav-item[data-target=drive]').click(); document.getElementById('drive-upload-input').click();">
+                            <i class="fas fa-cloud-upload-alt"></i> <span data-original="Upload File">Upload File</span>
+                        </button>
+                    </div>
+
+                    <!-- Stats Grid -->
+                    <div class="stats-grid">
+                        <div class="stat-card glass-effect">
+                            <div class="stat-icon primary"><i class="fas fa-check-circle"></i></div>
+                            <div class="stat-info">
+                                <h3 id="stat-tasks">0</h3>
+                                <p data-original="Active Tasks">Active Tasks</p>
+                            </div>
+                        </div>
+                        <div class="stat-card glass-effect">
+                            <div class="stat-icon success"><i class="fas fa-users"></i></div>
+                            <div class="stat-info">
+                                <h3 id="stat-team">0</h3>
+                                <p data-original="Team Members">Team Members</p>
+                            </div>
+                        </div>
+                        <div class="stat-card glass-effect">
+                            <div class="stat-icon warning"><i class="fas fa-calendar-check"></i></div>
+                            <div class="stat-info">
+                                <h3 id="stat-events">0</h3>
+                                <p data-original="Upcoming Events">Upcoming Events</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="dashboard-grid" style="display:grid;grid-template-columns: 2fr 1fr; gap:1.5rem;">
+                        <div style="display:flex;flex-direction:column;gap:1.5rem;">
+                            <div class="analytics-card glass-effect">
+                                <h3>Task Overview</h3>
+                                <div style="position: relative; height: 300px; width: 100%;">
+                                    <canvas id="tasks-chart"></canvas>
+                                </div>
+                            </div>
+                            <div class="analytics-card glass-effect admin-only">
+                                <h3>Financial Forecasting (AI)</h3>
+                                <p class="subtitle">توقعات الأرباح للشهر القادم بناءً على أدائك الحالي</p>
+                                <div id="finance-forecast-chart"
+                                    style="height:200px;display:flex;align-items:center;justify-content:center;color:var(--text-secondary);">
+                                    <i class="fas fa-chart-line" style="font-size:3rem;opacity:0.2;"></i>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="analytics-card glass-effect" style="max-height:600px;overflow-y:auto;">
+                            <div
+                                style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
+                                <h3 style="margin:0;">Recent Activity</h3>
+                                <i class="fas fa-bolt" style="color:var(--warning);"></i>
+                            </div>
+                            <ul class="activity-list" id="activity-list">
+                                <!-- Populated via JS -->
+                            </ul>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Tasks View -->
+                <section id="tasks" class="view-section">
+                    <div class="header-section flex-between">
+                        <div>
+                            <h1 data-original="Task Management">Task Management</h1>
+                            <p class="subtitle" data-original="Organize and track your team's progress">Organize and
+                                track your team's progress</p>
+                        </div>
+                        <button class="btn btn-primary" id="btn-add-task"><i class="fas fa-plus"></i> <span
+                                data-original="New Task">New Task</span></button>
+                    </div>
+                    <div class="task-board">
+                        <div class="task-column">
+                            <div class="column-header">
+                                <h3>To Do</h3>
+                                <span class="count" id="count-todo">0</span>
+                            </div>
+                            <div class="task-list" id="todo-list" data-status="todo"></div>
+                        </div>
+                        <div class="task-column">
+                            <div class="column-header">
+                                <h3>In Progress</h3>
+                                <span class="count" id="count-inprogress">0</span>
+                            </div>
+                            <div class="task-list" id="inprogress-list" data-status="inprogress"></div>
+                        </div>
+                        <div class="task-column">
+                            <div class="column-header">
+                                <h3>Done</h3>
+                                <span class="count" id="count-done">0</span>
+                            </div>
+                            <div class="task-list" id="done-list" data-status="done"></div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Team View -->
+                <section id="team" class="view-section">
+                    <div class="header-section">
+                        <div>
+                            <h1>Team Collaboration</h1>
+                            <p class="subtitle">Members who joined the platform</p>
+                        </div>
+                    </div>
+                    <div class="team-grid" id="team-grid">
+                        <!-- Populated via JS -->
+                    </div>
+                </section>
+
+                <!-- Chat / Messaging View -->
+                <section id="chat-section" class="view-section">
+                    <div class="chat-container">
+                        <!-- Left: Sidebar -->
+                        <aside class="chat-sidebar">
+                            <div class="chat-sidebar-header">
+                                <h2 data-original="Conversations"><i class="fas fa-comments"></i> <span>المحادثات</span>
+                                </h2>
+                                <button id="chat-dynamic-add-btn" style="display:none;"
+                                    onclick="ChatManager.handleCreateAction()" title="إنشاء">
+                                    <i class="fas fa-plus"></i>
+                                </button>
+                            </div>
+                            <div class="chat-tabs-header">
+                                <button class="chat-tab active" data-type="private">
+                                    <i class="fas fa-user"></i> <span data-original="Private">Private</span>
+                                </button>
+                                <button class="chat-tab" data-type="group">
+                                    <i class="fas fa-users"></i> <span data-original="Groups">Groups</span>
+                                </button>
+                                <button class="chat-tab" data-type="broadcast">
+                                    <i class="fas fa-bullhorn"></i> <span data-original="Channels">Channels</span>
+                                </button>
+                            </div>
+                            <div class="chat-search-bar"
+                                style="padding:0.75rem 1.25rem;border-bottom:1px solid var(--border-color);">
+                                <div style="position:relative;">
+                                    <i class="fas fa-search"
+                                        style="position:absolute;inset-inline-start:12px;top:50%;transform:translateY(-50%);font-size:0.8rem;color:var(--text-secondary);"></i>
+                                    <input type="text" id="chat-sidebar-search" placeholder="بحث..."
+                                        style="width:100%;padding:0.6rem;padding-inline-start:2.2rem;border-radius:20px;border:1px solid var(--border-color);background:var(--bg-primary);color:var(--text-primary);font-size:0.85rem;outline:none;"
+                                        oninput="ChatManager.filterSidebar(this.value)">
+                                </div>
+                            </div>
+                            <div class="chat-users-list" id="chat-users-sidebar">
+                                <!-- Populated via JS -->
+                            </div>
+                        </aside>
+
+                        <!-- Right: Chat area -->
+                        <main class="chat-main">
+                            <!-- Chat Header -->
+                            <header class="chat-main-header" style="opacity:0; pointer-events:none;">
+                                <div style="display:flex; align-items:center; gap:1rem;">
+                                    <img src="" id="chat-active-avatar" class="chat-header-avatar" style="display:none;"
+                                        alt="Avatar">
+                                    <div class="chat-active-info"
+                                        style="display:flex; flex-direction:column; gap:0.15rem;">
+                                        <div id="chat-active-name"
+                                            style="font-weight:800; font-size:1.1rem; color:var(--text-primary); letter-spacing: -0.2px;">
+                                            اختر محادثة</div>
+                                        <div id="chat-active-status"
+                                            style="font-size:0.75rem; font-weight:500; display:flex; align-items:center; gap:6px;">
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="chat-encryption-badge">
+                                    <i class="fas fa-shield-alt"></i> <span>مشفرة وآمنة</span>
+                                </div>
+                            </header>
+
+                            <!-- Attachment Preview Bar -->
+                            <div id="chat-attachment-preview"
+                                style="display:none; padding:1rem 2rem; background:var(--bg-secondary); border-bottom:1px solid var(--border-color); align-items:center; gap:1rem; box-sizing:border-box;">
+                                <div id="chat-attachment-thumb"
+                                    style="flex:1; font-size:0.9rem; font-weight:600; color:var(--text-primary);"></div>
+                                <button onclick="ChatManager.clearAttachment()"
+                                    style="background:rgba(239,68,68,0.1); color:var(--danger); border:none; border-radius:50%; width:34px; height:34px; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:all 0.2s;">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+
+                            <!-- Messages Area -->
+                            <div id="chat-messages" class="chat-messages-area">
+                                <div id="chat-empty-state"
+                                    style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; color:var(--text-secondary); gap:2rem; padding:2rem; text-align:center;">
+                                    <div style="position:relative;">
+                                        <div
+                                            style="width:120px; height:120px; border-radius:35px; background:linear-gradient(135deg, var(--bg-secondary), var(--bg-primary)); display:flex; align-items:center; justify-content:center; box-shadow:0 20px 40px rgba(0,0,0,0.1); border:1px solid var(--border-color); animation: pulse 3s infinite ease-in-out;">
+                                            <i class="fas fa-comments"
+                                                style="font-size:4rem; background: var(--primary-gradient); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; filter: drop-shadow(0 10px 15px rgba(37,99,235,0.2)); transition: transform 0.3s ease;"></i>
+                                        </div>
+                                        <div
+                                            style="position:absolute; bottom:-10px; right:-10px; width:40px; height:40px; border-radius:12px; background:var(--success); color:white; display:flex; align-items:center; justify-content:center; box-shadow:0 8px 16px rgba(16,185,129,0.3); border:3px solid var(--bg-primary);">
+                                            <i class="fas fa-check" style="font-size:1.2rem;"></i>
+                                        </div>
+                                    </div>
+                                    <div style="max-width:320px;">
+                                        <h3
+                                            style="font-size:1.5rem; font-weight:800; color:var(--text-primary); margin-bottom:0.75rem;">
+                                            ابدأ التواصل الآن</h3>
+                                        <p style="font-size:0.95rem; line-height:1.6; opacity:0.7;">اختر زميلاً من
+                                            القائمة الجانبية أو انضم لمجموعة عمل لبدء المحادثة في بيئة آمنة ومشفرة.</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Input wrapper -->
+                            <div class="chat-input-wrapper" style="opacity:0; pointer-events:none;">
+                                <div class="chat-input-container">
+                                    <button class="chat-action-btn"
+                                        onclick="document.getElementById('chat-file-input').click()"
+                                        title="Attach file">
+                                        <i class="fas fa-paperclip"></i>
+                                    </button>
+                                    <input type="file" id="chat-file-input"
+                                        accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx,.zip,.rar"
+                                        style="display:none;" onchange="ChatManager.handleFileSelect(this)">
+                                    <input id="chat-input" type="text" placeholder="اكتب رسالة..."
+                                        data-original-ph="Type a message...">
+                                    <button id="btn-send-msg" class="chat-action-btn">
+                                        <i class="fas fa-paper-plane" style="transform:translate(-1px,1px);"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </main>
+                    </div>
+                </section>
+
+
+                <!-- Calendar View -->
+                <section id="calendar" class="view-section">
+                    <div class="header-section flex-between">
+                        <div>
+                            <h1 data-original="Schedule">Schedule</h1>
+                            <p class="subtitle" data-original="Plan your deadlines and meetings">Plan your deadlines and
+                                meetings</p>
+                        </div>
+                        <button class="btn btn-primary" id="btn-add-event"><i class="fas fa-plus"></i> <span
+                                data-original="Add Event">Add Event</span></button>
+                    </div>
+                    <div class="calendar-container glass-effect">
+                        <div class="calendar-header flex-between">
+                            <button class="btn btn-icon" id="prev-month"><i class="fas fa-chevron-left"></i></button>
+                            <h2 id="month-year"></h2>
+                            <button class="btn btn-icon" id="next-month"><i class="fas fa-chevron-right"></i></button>
+                        </div>
+                        <div class="calendar-grid">
+                            <div class="day-name">Sun</div>
+                            <div class="day-name">Mon</div>
+                            <div class="day-name">Tue</div>
+                            <div class="day-name">Wed</div>
+                            <div class="day-name">Thu</div>
+                            <div class="day-name">Fri</div>
+                            <div class="day-name">Sat</div>
+                            <div id="calendar-days" class="calendar-days"></div>
+                        </div>
+                    </div>
+                    <!-- Upcoming Events List -->
+                    <div class="glass-effect" style="padding:1.25rem;border-radius:var(--radius-lg);margin-top:1.5rem;">
+                        <h3 style="margin-bottom:1rem;"><i class="fas fa-list-ul"
+                                style="color:var(--primary-color)"></i> Upcoming Events</h3>
+                        <div id="events-list"></div>
+                    </div>
+                </section>
+
+                <!-- Reports View -->
+                <section id="reports" class="view-section">
+                    <div class="header-section">
+                        <h1>Reports & Analytics</h1>
+                        <p class="subtitle">Export actionable data for analysis</p>
+                    </div>
+                    <div class="reports-container">
+                        <div class="report-card glass-effect">
+                            <div class="report-icon"><i class="fas fa-tasks"></i></div>
+                            <h3 data-original="Tasks Report">Tasks Report</h3>
+                            <p
+                                data-original="Export all tasks, their statuses, priorities, and deadlines into a CSV file">
+                                Export all tasks, their statuses, priorities, and deadlines into a CSV file</p>
+                            <button class="btn btn-outline" id="btn-export-tasks"><i class="fas fa-download"></i>
+                                <span data-original="Download CSV">Download CSV</span></button>
+                        </div>
+                        <div class="report-card glass-effect">
+                            <div class="report-icon"><i class="fas fa-users"></i></div>
+                            <h3 data-original="Team Report">Team Report</h3>
+                            <p data-original="Export team member list, roles, and emails into a CSV file">Export team
+                                member list, roles, and emails into a CSV file</p>
+                            <button class="btn btn-outline" id="btn-export-team"><i class="fas fa-download"></i>
+                                <span data-original="Download CSV">Download CSV</span></button>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Settings View -->
+                <section id="settings" class="view-section">
+                    <div class="header-section">
+                        <h1 data-en="Platform Settings" data-ar="إعدادات المنصة">Platform Settings</h1>
+                        <p class="subtitle" data-en="Customize language, theme, and workspace preferences"
+                            data-ar="تخصيص اللغة والمظهر وتفضيلات مكان العمل">Customize language, theme, and workspace
+                            preferences</p>
+                    </div>
+                    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:1.5rem;">
+                        <!-- Preferences Card -->
+                        <div class="glass-effect" style="padding:1.5rem;border-radius:var(--radius-lg);">
+                            <h3 style="margin-bottom:1.25rem;"><i class="fas fa-palette"></i> Appearance</h3>
+                            <div class="form-group" style="margin-bottom:1.25rem;">
+                                <label data-en="Display Language" data-ar="لغة العرض">Display Language</label>
+                                <select id="setting-lang">
+                                    <option value="en">🇺🇸 English (LTR)</option>
+                                    <option value="ar">🇸🇦 العربية (RTL)</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label data-en="Theme Mode" data-ar="مظهر المنصة">Theme Mode</label>
+                                <select id="setting-theme">
+                                    <option value="light">☀️ Light Mode</option>
+                                    <option value="dark">🌙 Dark Mode</option>
+                                </select>
+                            </div>
+                        </div>
+                        <!-- Account Management Card -->
+                        <div class="glass-effect"
+                            style="padding:1.5rem;border-radius:var(--radius-lg);display:flex;flex-direction:column;justify-content:space-between;">
+                            <div>
+                                <h3 style="margin-bottom:1.25rem;color:var(--danger);"><i class="fas fa-shield-alt"></i>
+                                    <span data-original="Account Security">Account Security</span>
+                                </h3>
+                                <p style="color:var(--text-secondary);font-size:0.875rem;line-height:1.6;margin-bottom:1.5rem;"
+                                    data-original="Manage your account session. Ensure you log out when using public or shared devices to protect your platform data and privacy.">
+                                    Manage your account session. Ensure you log out when using public or shared devices
+                                    to protect your platform data and privacy.
+                                </p>
+                            </div>
+                            <div style="display:flex;flex-direction:column;gap:0.75rem;">
+                                <button class="btn" id="btn-logout"
+                                    style="justify-content:center;background:rgba(239,68,68,0.1);color:var(--danger);border:1px solid var(--danger);padding:0.875rem;font-weight:700;font-size:1rem;transition:all 0.3s ease;">
+                                    <i class="fas fa-sign-out-alt" style="margin-right:0.5rem;"></i> Logout of Platform
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Finance Section -->
+                <section id="finance" class="view-section admin-only">
+                    <div class="header-section flex-between">
+                        <div>
+                            <h1><i class="fas fa-wallet" style="color:var(--primary-color)"></i> <span
+                                    data-original="Financial Management">Financial Management</span></h1>
+                            <p class="subtitle" data-original="Manage expenses and debts">Manage expenses and debts</p>
+                        </div>
+                    </div>
+
+                    <!-- Finance Tabs -->
+                    <div
+                        style="display:flex;gap:1rem;margin-bottom:1.5rem;border-bottom:1px solid var(--border-color);padding-bottom:1rem;">
+                        <button class="btn btn-primary" id="tab-expenses"
+                            onclick="FinanceManager.switchTab('expenses')">
+                            <i class="fas fa-money-bill-wave"></i> <span data-original="Expenses">Expenses</span>
+                        </button>
+                        <button class="btn btn-outline" id="tab-debts" onclick="FinanceManager.switchTab('debts')">
+                            <i class="fas fa-hand-holding-usd"></i> <span data-original="Debts">Debts</span>
+                        </button>
+                    </div>
+
+                    <!-- Expenses View -->
+                    <div id="finance-expenses" class="finance-tab active">
+                        <div class="stats-grid" style="margin-bottom:1.5rem;">
+                            <div class="stat-card glass-effect" style="border-left:4px solid var(--danger);">
+                                <div class="stat-info">
+                                    <h3 id="finance-total-expenses">$0</h3>
+                                    <p data-original="Total Monthly Expenses">Total Monthly Expenses</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="header-section flex-between" style="margin-bottom:1rem;">
+                            <h3 data-original="Expenses Record">Expenses Record</h3>
+                            <button class="btn btn-primary" onclick="FinanceManager.openModal('expense')"><i
+                                    class="fas fa-plus"></i> <span data-original="Add Expense">Add
+                                    Expense</span></button>
+                        </div>
+                        <div class="glass-effect"
+                            style="padding:1.5rem;border-radius:var(--radius-lg);overflow-x:auto;">
+                            <table style="width:100%;border-collapse:collapse;font-size:0.875rem;">
+                                <thead>
+                                    <tr style="border-bottom:2px solid var(--border-color);">
+                                        <th style="padding:0.75rem;text-align:left;" data-original="Date">Date</th>
+                                        <th style="padding:0.75rem;text-align:left;" data-original="Category">Category
+                                        </th>
+                                        <th style="padding:0.75rem;text-align:left;" data-original="Description">
+                                            Description</th>
+                                        <th style="padding:0.75rem;text-align:left;" data-original="Amount">Amount</th>
+                                        <th style="padding:0.75rem;text-align:left;" data-original="Actions">Actions
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody id="finance-expenses-list"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Debts View -->
+                    <div id="finance-debts" class="finance-tab hidden" style="display:none;">
+                        <div class="stats-grid" style="margin-bottom:1.5rem;">
+                            <div class="stat-card glass-effect" style="border-left:4px solid #f59e0b;">
+                                <div class="stat-info">
+                                    <h3 id="finance-total-debts">$0</h3>
+                                    <p data-original="Remaining Debts">Remaining Debts</p>
+                                </div>
+                            </div>
+                            <div class="stat-card glass-effect" style="border-left:4px solid var(--success);">
+                                <div class="stat-info">
+                                    <h3 id="finance-paid-debts">$0</h3>
+                                    <p data-original="Paid Debts">Paid Debts</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="header-section flex-between" style="margin-bottom:1rem;">
+                            <h3 data-original="Debts Record">Debts Record</h3>
+                            <button class="btn btn-primary" onclick="FinanceManager.openModal('debt')"><i
+                                    class="fas fa-plus"></i> <span data-original="Add Debt">Add Debt</span></button>
+                        </div>
+                        <div class="glass-effect"
+                            style="padding:1.5rem;border-radius:var(--radius-lg);overflow-x:auto;">
+                            <table style="width:100%;border-collapse:collapse;font-size:0.875rem;">
+                                <thead>
+                                    <tr style="border-bottom:2px solid var(--border-color);">
+                                        <th style="padding:0.75rem;text-align:left;" data-original="Date">Date</th>
+                                        <th style="padding:0.75rem;text-align:left;" data-original="Debtor/Creditor">
+                                            Debtor/Creditor</th>
+                                        <th style="padding:0.75rem;text-align:left;" data-original="Amount">Amount</th>
+                                        <th style="padding:0.75rem;text-align:left;" data-original="Due Date">Due Date
+                                        </th>
+                                        <th style="padding:0.75rem;text-align:left;" data-original="Status">Status</th>
+                                        <th style="padding:0.75rem;text-align:left;" data-original="Actions">Actions
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody id="finance-debts-list"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Profile Section -->
+                <section id="profile" class="view-section">
+                    <div class="header-section">
+                        <h1 data-original="My Profile">My Profile</h1>
+                        <p class="subtitle" data-original="Manage your personal information and account settings">Manage
+                            your personal information and account settings</p>
+                    </div>
+                    <div style="display:grid;grid-template-columns:1fr 2fr;gap:2rem;align-items:start;">
+                        <!-- Profile Card -->
+                        <div class="glass-effect"
+                            style="padding:2rem;border-radius:var(--radius-lg);text-align:center;">
+                            <div style="position:relative;display:inline-block;margin-bottom:1.5rem;">
+                                <img id="profile-display-avatar" src="" alt="Avatar"
+                                    style="width:120px;height:120px;border-radius:50%;object-fit:cover;border:4px solid var(--primary-color);">
+                                <label for="setting-avatar-file"
+                                    style="position:absolute;bottom:0;right:0;background:var(--primary-color);color:white;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:0.875rem;">
+                                    <i class="fas fa-camera"></i>
+                                </label>
+                            </div>
+                            <h2 id="profile-display-name" style="margin-bottom:0.25rem;">Loading...</h2>
+                            <p id="profile-display-title" style="color:var(--text-secondary);margin-bottom:0.75rem;">
+                            </p>
+                            <span id="profile-display-role"
+                                style="display:inline-block;padding:0.25rem 1rem;border-radius:20px;background:rgba(37,99,235,0.1);color:var(--primary-color);font-size:0.8rem;font-weight:600;"></span>
+                        </div>
+                        <!-- Edit Form -->
+                        <div style="display:flex;flex-direction:column;gap:1.5rem;">
+                            <div class="glass-effect" style="padding:1.5rem;border-radius:var(--radius-lg);">
+                                <h3 style="margin-bottom:1.25rem;"><i class="fas fa-user-edit"></i> <span
+                                        data-original="Edit Profile">Edit Profile</span></h3>
+                                <input type="file" id="setting-avatar-file" accept="image/*" style="display:none;">
+                                <div style="display:flex;align-items:center;gap:1rem;margin-bottom:1.25rem;">
+                                    <img id="avatar-preview" src="" alt=""
+                                        style="width:64px;height:64px;border-radius:50%;object-fit:cover;border:2px solid var(--border-color);">
+                                    <label for="setting-avatar-file" class="btn btn-outline" style="cursor:pointer;"><i
+                                            class="fas fa-upload"></i> Upload Photo</label>
+                                </div>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label data-original="Full Name">Full Name</label>
+                                        <input type="text" id="setting-name" data-original-ph="Your name"
+                                            placeholder="Your name">
+                                    </div>
+                                    <div class="form-group">
+                                        <label data-original="Job Title">Job Title</label>
+                                        <input type="text" id="setting-title" data-original-ph="e.g. Project Manager"
+                                            placeholder="e.g. Project Manager">
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label data-original="Email Address">Email Address <span
+                                            style="font-size:0.75rem;color:var(--text-secondary);font-weight:normal;">(تعديل
+                                            من قبل الإدارة فقط)</span></label>
+                                    <input type="email" id="setting-email" placeholder="your@email.com" disabled
+                                        style="opacity:0.6;cursor:not-allowed;">
+                                </div>
+                                <button class="btn btn-primary" id="btn-save-profile"
+                                    style="width:100%;justify-content:center;"><i class="fas fa-save"></i> Save
+                                    Changes</button>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Audit Logs View (Admin Only) -->
+                <section id="audit" class="view-section admin-only">
+                    <div class="header-section">
+                        <h1 data-original="Audit Logs">Audit Logs</h1>
+                        <p class="subtitle" data-original="Platform activity and security monitoring">Platform activity
+                            and security monitoring</p>
+                    </div>
+                    <div class="audit-container glass-effect"
+                        style="padding: 1.5rem; border-radius: var(--radius-lg); max-height: 70vh; overflow-y: auto;">
+                        <table style="width: 100%; text-align: left; border-collapse: collapse;">
+                            <thead>
+                                <tr style="border-bottom: 1px solid var(--border-color);">
+                                    <th style="padding: 1rem;">Timestamp</th>
+                                    <th style="padding: 1rem;">User</th>
+                                    <th style="padding: 1rem;">Action</th>
+                                    <th style="padding: 1rem;">Target</th>
+                                </tr>
+                            </thead>
+                            <tbody id="audit-list">
+                                <!-- Populated via JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <!-- Admin Panel (Super Admin Only) -->
+                <section id="admin-panel" class="view-section admin-only">
+                    <div class="header-section flex-between">
+                        <div>
+                            <h1 data-original="Admin Panel"><i class="fas fa-user-shield"
+                                    style="color:var(--primary-color)"></i> Admin Panel</h1>
+                            <p class="subtitle" data-original="Full control over users, accounts, and platform data">
+                                Full control over users, accounts, and platform data</p>
+                        </div>
+                        <button class="btn btn-primary" onclick="AdminPanel.refresh()"><i class="fas fa-sync"></i>
+                            Refresh</button>
+                    </div>
+
+                    <!-- Stats Row -->
+                    <div class="stats-grid" style="margin-bottom:2rem;" id="admin-stats-grid">
+                        <div class="stat-card glass-effect">
+                            <div class="stat-icon primary"><i class="fas fa-users"></i></div>
+                            <div class="stat-info">
+                                <h3 id="admin-stat-total">0</h3>
+                                <p>Total Users</p>
+                            </div>
+                        </div>
+                        <div class="stat-card glass-effect">
+                            <div class="stat-icon success"><i class="fas fa-user-shield"></i></div>
+                            <div class="stat-info">
+                                <h3 id="admin-stat-admins">0</h3>
+                                <p>Admins</p>
+                            </div>
+                        </div>
+                        <div class="stat-card glass-effect">
+                            <div class="stat-icon warning"><i class="fas fa-tasks"></i></div>
+                            <div class="stat-info">
+                                <h3 id="admin-stat-tasks">0</h3>
+                                <p>Total Tasks</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Users Table -->
+                    <div class="glass-effect"
+                        style="padding:1.5rem;border-radius:var(--radius-lg);overflow-x:auto;margin-bottom:2rem;">
+                        <div
+                            style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem;">
+                            <h3><i class="fas fa-users"></i> All Users</h3>
+                            <input type="text" id="admin-search-user" placeholder="Search users..."
+                                style="padding:0.5rem 1rem;border-radius:var(--radius-md);border:1px solid var(--border-color);background:var(--bg-primary);color:var(--text-primary);"
+                                oninput="AdminPanel.filterUsers(this.value)">
+                        </div>
+                        <table style="width:100%;border-collapse:collapse;font-size:0.875rem;">
+                            <thead>
+                                <tr style="border-bottom:2px solid var(--border-color);">
+                                    <th style="padding:0.75rem;text-align:left;">User</th>
+                                    <th style="padding:0.75rem;text-align:left;">Email</th>
+                                    <th style="padding:0.75rem;text-align:left;">Role</th>
+                                    <th style="padding:0.75rem;text-align:left;">Title</th>
+                                    <th style="padding:0.75rem;text-align:left;">Joined</th>
+                                </tr>
+                            </thead>
+                            <tbody id="admin-users-table"></tbody>
+                        </table>
+                    </div>
+
+                    <!-- Audit Logs (Moved into Admin Panel) -->
+                    <div class="glass-effect" style="padding:1.5rem;border-radius:var(--radius-lg);overflow-x:auto;">
+                        <div
+                            style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem;">
+                            <h3><i class="fas fa-shield-alt"></i> سجل المراجعة (Audit Logs)</h3>
+                        </div>
+                        <div style="max-height:400px;overflow-y:auto;">
+                            <table
+                                style="width: 100%; text-align: left; border-collapse: collapse; font-size:0.875rem;">
+                                <thead>
+                                    <tr style="border-bottom: 1px solid var(--border-color);">
+                                        <th style="padding: 1rem;">Timestamp</th>
+                                        <th style="padding: 1rem;">User</th>
+                                        <th style="padding: 1rem;">Action</th>
+                                        <th style="padding: 1rem;">Target</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="audit-list">
+                                    <!-- Populated via JS -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Admin Support Tickets View -->
+                    <div class="glass-effect" style="padding:1.5rem;border-radius:var(--radius-lg);margin-top:2rem;">
+                        <div
+                            style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem;">
+                            <h3><i class="fas fa-headset"></i> تذاكر الدعم الفني (Support Tickets)</h3>
+                        </div>
+                        <div class="support-grid"
+                            style="display:grid;grid-template-columns:1fr 2fr;gap:1.5rem;height:500px;">
+                            <!-- Tickets List -->
+                            <div class="glass-effect"
+                                style="border-radius:var(--radius-lg);display:flex;flex-direction:column;overflow:hidden;border:1px solid var(--border-color);">
+                                <div
+                                    style="padding:1rem;border-bottom:1px solid var(--border-color);background:rgba(37,99,235,0.05);font-weight:700;">
+                                    <i class="fas fa-ticket-alt"></i> كافة التذاكر
+                                </div>
+                                <div id="admin-support-tickets-list" style="flex:1;overflow-y:auto;padding:0.5rem;">
+                                    <!-- Tickets populated here -->
+                                </div>
+                            </div>
+                            <!-- Ticket View/Chat -->
+                            <div class="glass-effect"
+                                style="border-radius:var(--radius-lg);display:flex;flex-direction:column;overflow:hidden;position:relative;border:1px solid var(--border-color);">
+                                <div id="admin-support-ticket-header"
+                                    style="padding:1rem;border-bottom:1px solid var(--border-color);background:rgba(37,99,235,0.05);display:flex;justify-content:space-between;align-items:center;">
+                                    <div style="font-weight:700;color:var(--text-secondary);">اختر تذكرة لعرضها</div>
+                                    <div id="admin-support-ticket-status"></div>
+                                </div>
+                                <div id="admin-support-ticket-messages"
+                                    style="flex:1;overflow-y:auto;padding:1.5rem;display:flex;flex-direction:column;gap:1rem;background:var(--bg-primary);">
+                                    <div
+                                        style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:var(--text-secondary);opacity:0.5;">
+                                        <i class="fas fa-headset" style="font-size:4rem;margin-bottom:1rem;"></i>
+                                        <p>لوحة تحكم الدعم الفني</p>
+                                    </div>
+                                </div>
+                                <div id="admin-support-reply-area"
+                                    style="padding:1rem;border-top:1px solid var(--border-color);background:var(--bg-secondary);display:none;gap:0.5rem;align-items:center;">
+                                    <input type="text" id="admin-support-reply-input" placeholder="اكتب ردك هنا..."
+                                        style="flex:1;padding:0.8rem;border-radius:var(--radius-md);border:1px solid var(--border-color);background:var(--bg-primary);color:var(--text-primary);">
+                                    <button class="btn btn-primary" onclick="SupportManager.sendReply()"
+                                        style="padding:0.8rem 1.5rem;"><i class="fas fa-paper-plane"></i></button>
+                                    <button class="btn btn-secondary" id="admin-btn-close-ticket"
+                                        onclick="SupportManager.closeTicket()" style="padding:0.8rem 1rem;"
+                                        title="إغلاق التذكرة"><i class="fas fa-check-circle"></i></button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Reset Password Modal Trigger (inline) -->
+                    <div id="admin-reset-modal" class="modal hidden">
+                        <div class="modal-content glass-effect" style="max-width:400px;">
+                            <div class="modal-header">
+                                <h2><i class="fas fa-key"></i> Reset Password</h2>
+                                <button class="close-modal"><i class="fas fa-times"></i></button>
+                            </div>
+                            <div class="modal-body">
+                                <p style="margin-bottom:1rem;color:var(--text-secondary);font-size:0.875rem;">Resetting
+                                    password for: <strong id="admin-reset-target-name"></strong></p>
+                                <div class="form-group">
+                                    <label>New Password</label>
+                                    <input type="text" id="admin-new-password" placeholder="Enter new password">
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button class="btn btn-secondary cancel-modal">Cancel</button>
+                                <button class="btn btn-primary" onclick="AdminPanel.confirmReset()"><i
+                                        class="fas fa-save"></i> Save</button>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Help Desk / Support Section -->
+                <section id="support" class="view-section">
+                    <div class="header-section flex-between">
+                        <div>
+                            <h1><i class="fas fa-headset" style="color:var(--primary-color)"></i> مركز الدعم والمساعدة
+                            </h1>
+                            <p class="subtitle">تواصل مع الدعم الفني لحل المشكلات وتقديم الاقتراحات</p>
+                        </div>
+                        <button class="btn btn-primary" id="btn-new-ticket"
+                            onclick="SupportManager.showNewTicketModal()">
+                            <i class="fas fa-plus"></i> تذكرة جديدة
+                        </button>
+                    </div>
+
+                    <div class="support-grid"
+                        style="display:grid;grid-template-columns:1fr 2fr;gap:1.5rem;height:calc(100vh - 200px);">
+                        <!-- Tickets List -->
+                        <div class="glass-effect"
+                            style="border-radius:var(--radius-lg);display:flex;flex-direction:column;overflow:hidden;">
+                            <div
+                                style="padding:1rem;border-bottom:1px solid var(--border-color);background:rgba(37,99,235,0.05);font-weight:700;">
+                                <i class="fas fa-ticket-alt"></i> التذاكر الخاصة بي
+                            </div>
+                            <div id="support-tickets-list" style="flex:1;overflow-y:auto;padding:0.5rem;">
+                                <!-- Tickets populated here -->
+                            </div>
+                        </div>
+
+                        <!-- Ticket View/Chat -->
+                        <div class="glass-effect"
+                            style="border-radius:var(--radius-lg);display:flex;flex-direction:column;overflow:hidden;position:relative;">
+                            <div id="support-ticket-header"
+                                style="padding:1rem;border-bottom:1px solid var(--border-color);background:rgba(37,99,235,0.05);display:flex;justify-content:space-between;align-items:center;">
+                                <div style="font-weight:700;color:var(--text-secondary);">اختر تذكرة لعرضها</div>
+                                <div id="support-ticket-status"></div>
+                            </div>
+                            <div id="support-ticket-messages"
+                                style="flex:1;overflow-y:auto;padding:1.5rem;display:flex;flex-direction:column;gap:1rem;background:var(--bg-primary);">
+                                <!-- Messages here -->
+                                <div
+                                    style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:var(--text-secondary);opacity:0.5;">
+                                    <i class="fas fa-headset" style="font-size:4rem;margin-bottom:1rem;"></i>
+                                    <p>مركز الدعم الفني في خدمتك</p>
+                                </div>
+                            </div>
+                            <div id="support-reply-area"
+                                style="padding:1rem;border-top:1px solid var(--border-color);background:var(--bg-secondary);display:none;gap:0.5rem;align-items:center;">
+                                <input type="text" id="support-reply-input" placeholder="اكتب ردك هنا..."
+                                    style="flex:1;padding:0.8rem;border-radius:var(--radius-md);border:1px solid var(--border-color);background:var(--bg-primary);color:var(--text-primary);">
+                                <button class="btn btn-primary" onclick="SupportManager.sendReply()"
+                                    style="padding:0.8rem 1.5rem;"><i class="fas fa-paper-plane"></i></button>
+                                <button class="btn btn-secondary admin-only" id="btn-close-ticket"
+                                    onclick="SupportManager.closeTicket()" style="padding:0.8rem 1rem;display:none;"
+                                    title="إغلاق التذكرة"><i class="fas fa-check-circle"></i></button>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Drive View -->
+                <section id="drive" class="view-section">
+                    <div class="header-section flex-between">
+                        <div>
+                            <h1 data-original="Cloud Drive"><i class="fas fa-cloud"
+                                    style="color:var(--primary-color)"></i> Cloud Drive</h1>
+                            <p class="subtitle" data-original="Store and share files with your team">Store and share
+                                files with your team</p>
+                        </div>
+                        <button class="btn btn-primary" onclick="document.getElementById('drive-upload-input').click()">
+                            <i class="fas fa-upload"></i> <span data-original="Upload File">Upload File</span>
+                        </button>
+                        <input type="file" id="drive-upload-input" style="display:none;" multiple>
+                    </div>
+
+                    <div class="glass-effect" style="border-radius:var(--radius-lg);padding:1.5rem;min-height:500px;">
+                        <div
+                            style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.5rem;border-bottom:1px solid var(--border-color);padding-bottom:1rem;">
+                            <div style="font-weight:700;font-size:1.1rem;" data-original="All Files">All Files</div>
+                            <div style="display:flex;gap:0.5rem;align-items:center;">
+                                <i class="fas fa-hard-drive" style="color:var(--text-secondary);"></i>
+                                <span id="drive-usage" style="font-size:0.875rem;color:var(--text-secondary);">0 MB
+                                    <span data-original="used">used</span></span>
+                            </div>
+                        </div>
+                        <div id="drive-grid"
+                            style="display:grid;grid-template-columns:repeat(auto-fill, minmax(200px, 1fr));gap:1.5rem;">
+                            <!-- Files will be injected here -->
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Projects View -->
+                <section id="projects" class="view-section">
+                    <div class="section-header">
+                        <h1 data-original="Projects">Projects</h1>
+                        <button class="btn btn-primary admin-only" id="btn-add-project"><i class="fas fa-plus"></i>
+                            <span data-original="New Project">New Project</span></button>
+                    </div>
+                    <div class="stats-grid" id="projects-stats"></div>
+                    <div class="team-grid" id="projects-grid"></div>
+                </section>
+
+                <!-- Clients CRM View -->
+                <section id="clients" class="view-section">
+                    <div class="section-header">
+                        <h1 data-original="Clients">Clients</h1>
+                        <button class="btn btn-primary admin-only" id="btn-add-client"><i class="fas fa-plus"></i> <span
+                                data-original="New Client">New Client</span></button>
+                    </div>
+                    <div class="glass-effect" style="padding:1.5rem; border-radius:var(--radius-lg); overflow-x:auto;">
+                        <table style="width:100%; border-collapse:collapse;">
+                            <thead>
+                                <tr style="border-bottom:2px solid var(--border-color); text-align:left;">
+                                    <th style="padding:1rem;">Client</th>
+                                    <th style="padding:1rem;">Contact</th>
+                                    <th style="padding:1rem;">Status</th>
+                                    <th style="padding:1rem;">Total Deals</th>
+                                    <th style="padding:1rem;">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="clients-table-body"></tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <!-- Wiki / Knowledge Base View -->
+                <section id="wiki" class="view-section">
+                    <div class="section-header">
+                        <h1 data-original="Knowledge Base">Knowledge Base</h1>
+                        <button class="btn btn-primary admin-only" id="btn-add-wiki"><i class="fas fa-plus"></i> <span
+                                data-original="Publish Article">Publish Article</span></button>
+                    </div>
+
+                    <div class="wiki-container">
+                        <aside class="wiki-sidebar">
+                            <h3 style="margin-bottom:1rem;" data-original="Categories">Categories</h3>
+                            <ul id="wiki-categories" style="list-style:none;"></ul>
+                        </aside>
+
+                        <div class="wiki-content-area">
+                            <div id="wiki-content"></div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Inventory View -->
+                <section id="inventory" class="view-section">
+                    <div class="section-header">
+                        <h1 data-original="Inventory">Inventory</h1>
+                        <button class="btn btn-primary" id="btn-add-inventory"><i class="fas fa-plus"></i> <span
+                                data-original="Add Inventory Item">Add Inventory Item</span></button>
+                    </div>
+                    <div class="stats-grid" id="inventory-stats"></div>
+                    <div class="team-grid" id="inventory-grid"></div>
+                </section>
+
+                <!-- Support Modals etc -->
+
+            </div>
+        </main>
+
+
+
+
+
+        <!-- New Ticket Modal -->
+        <div class="modal hidden" id="ticket-modal">
+            <div class="modal-content glass-effect" style="max-width:500px;">
+                <div class="modal-header">
+                    <h2><i class="fas fa-envelope-open-text" style="color:var(--primary-color)"></i> فتح تذكرة دعم</h2>
+                    <button class="close-modal" onclick="SupportManager.closeModal()"><i
+                            class="fas fa-times"></i></button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label>عنوان المشكلة</label>
+                        <input type="text" id="ticket-title" placeholder="مثال: مشكلة في تسجيل الدخول">
+                    </div>
+                    <div class="form-group">
+                        <label>وصف المشكلة</label>
+                        <textarea id="ticket-desc" rows="4" placeholder="اشرح مشكلتك بالتفصيل..."></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>القسم</label>
+                        <select id="ticket-category">
+                            <option value="Technical">دعم فني (مشاكل تقنية)</option>
+                            <option value="General">استفسار عام</option>
+                            <option value="Suggestion">اقتراح تطوير</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary cancel-modal" onclick="SupportManager.closeModal()">إلغاء</button>
+                    <button class="btn btn-primary" onclick="SupportManager.createTicket()"><i
+                            class="fas fa-paper-plane"></i> إرسال التذكرة</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Task Modal -->
+        <div class="modal hidden" id="task-modal">
+            <div class="modal-content glass-effect" style="max-width:580px;">
+                <div class="modal-header">
+                    <h2 id="task-modal-title"><i class="fas fa-plus-circle" style="color:var(--primary-color)"></i> New
+                        Task</h2>
+                    <button class="close-modal"><i class="fas fa-times"></i></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="task-id">
+                    <div class="form-group">
+                        <label data-original="Task Title">Task Title <span style="color:var(--danger)">*</span></label>
+                        <input type="text" id="task-title" data-original-ph="e.g., Q3 Marketing Strategy"
+                            placeholder="e.g., Q3 Marketing Strategy" required>
+                    </div>
+                    <div class="form-group">
+                        <label data-original="Description">Description</label>
+                        <textarea id="task-desc" rows="2" data-original-ph="Task details..."
+                            placeholder="Task details..." style="resize:vertical;"></textarea>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Priority</label>
+                            <select id="task-priority">
+                                <option value="low">🟢 Low</option>
+                                <option value="medium" selected>🟡 Medium</option>
+                                <option value="high">🔴 High</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Status</label>
+                            <select id="task-status">
+                                <option value="todo" selected>📋 To Do</option>
+                                <option value="inprogress">⚙️ In Progress</option>
+                                <option value="done">✅ Done</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Deadline</label>
+                            <input type="date" id="task-deadline">
+                        </div>
+                        <div class="form-group">
+                            <label>Attachment URL</label>
+                            <input type="url" id="task-attachment" placeholder="https://...">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Sub-tasks</label>
+                        <div id="subtasks-container"
+                            style="display:flex;flex-direction:column;gap:0.4rem;margin-bottom:0.5rem;max-height:120px;overflow-y:auto;">
+                        </div>
+                        <div style="display:flex;gap:0.5rem;">
+                            <input type="text" id="new-subtask-input" placeholder="Add a sub-task and press +"
+                                style="flex:1;">
+                            <button type="button" class="btn btn-outline" id="btn-add-subtask"
+                                style="padding:0.5rem 0.75rem;flex-shrink:0;"><i class="fas fa-plus"></i></button>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary cancel-modal" data-original="Cancel">Cancel</button>
+                    <button class="btn btn-primary" id="save-task"><i class="fas fa-save"></i> <span
+                            data-original="Save Task">Save Task</span></button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Event Modal -->
+        <div class="modal hidden" id="event-modal">
+            <div class="modal-content glass-effect" style="max-width:500px;">
+                <div class="modal-header">
+                    <h2 data-original="New Event / Appointment">New Event / Appointment</h2>
+                    <button class="close-modal"><i class="fas fa-times"></i></button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label>Event Title</label>
+                        <input type="text" id="event-title" placeholder="e.g., Doctor Appointment" required>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Date <span style="color:var(--danger)">*</span></label>
+                            <input type="date" id="event-date" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Time (optional)</label>
+                            <input type="time" id="event-time">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Notes</label>
+                        <textarea id="event-desc" rows="2" placeholder="Additional notes..."
+                            style="resize:vertical;"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary cancel-modal">Cancel</button>
+                    <button class="btn btn-primary" id="save-event"><i class="fas fa-save"></i> Save Event</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Team Member Modal -->
+        <div class="modal hidden" id="team-modal">
+            <div class="modal-content glass-effect">
+                <div class="modal-header">
+                    <h2><i class="fas fa-user-plus"></i> Add Team Member</h2>
+                    <button class="close-modal"><i class="fas fa-times"></i></button>
+                </div>
+                <div class="modal-body">
+                    <p
+                        style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:1rem;padding:0.75rem;background:rgba(37,99,235,0.05);border-radius:var(--radius-md);border-left:3px solid var(--primary-color);">
+                        <i class="fas fa-info-circle"></i> A user account will be created automatically with the default
+                        password: <strong>password123</strong>. The member should change it after first login.
+                    </p>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Full Name <span style="color:var(--danger)">*</span></label>
+                            <input type="text" id="member-name" placeholder="e.g., Ahmed Ali" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Job Title</label>
+                            <input type="text" id="member-title" placeholder="e.g., Developer">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Email Address <span style="color:var(--danger)">*</span></label>
+                        <input type="email" id="member-email" placeholder="ahmed@example.com" required>
+                    </div>
+                    <div class="form-group admin-only">
+                        <label>Role</label>
+                        <select id="member-role-select"
+                            style="width:100%;padding:0.75rem;border-radius:var(--radius-md);border:1px solid var(--border-color);background:var(--bg-primary);color:var(--text-primary);">
+                            <option value="Member">Member</option>
+                            <option value="Manager">Manager</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary cancel-modal">Cancel</button>
+                    <button class="btn btn-primary" id="save-member"><i class="fas fa-user-plus"></i> Add
+                        Member</button>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Admin Manage User Modal -->
+    <div class="modal hidden" id="admin-manage-user-modal">
+        <div class="modal-content glass-effect" style="max-width:400px;">
+            <div class="modal-header">
+                <h3 data-original="Manage User">Manage User</h3>
+                <button class="close-modal"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body" style="text-align:center;">
+                <img id="manage-user-avatar" src=""
+                    style="width:80px;height:80px;border-radius:50%;object-fit:cover;margin-bottom:1rem;border:3px solid var(--primary-color);">
+                <h4 id="manage-user-name" style="margin-bottom:0.25rem;"></h4>
+                <p id="manage-user-email" style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:1.5rem;">
+                </p>
+
+                <div class="form-group" style="text-align:left;">
+                    <label data-original="Role">Role</label>
+                    <select id="manage-user-role"
+                        style="width:100%;padding:0.75rem;border-radius:var(--radius-md);border:1px solid var(--border-color);background:var(--bg-primary);color:var(--text-primary);margin-bottom:1.5rem;">
+                        <option value="Member">Member</option>
+                        <option value="Manager">Manager</option>
+                        <option value="Super Admin">Super Admin</option>
+                    </select>
+                </div>
+
+                <div style="display:flex;flex-direction:column;gap:0.75rem;">
+                    <button id="manage-btn-chat" class="btn btn-primary" style="width:100%;">
+                        <i class="fas fa-comment"></i> <span data-original="Chat User">مراسلة العضو</span>
+                    </button>
+                    <button id="manage-btn-reset" class="btn"
+                        style="background:rgba(245,158,11,0.1);color:var(--warning);border:1px solid var(--warning);width:100%;">
+                        <i class="fas fa-key"></i> <span data-original="Reset Password">Reset Password</span>
+                    </button>
+                    <button id="manage-btn-delete" class="btn"
+                        style="background:rgba(239,68,68,0.1);color:var(--danger);border:1px solid var(--danger);width:100%;">
+                        <i class="fas fa-trash"></i> <span data-original="Delete User">Delete User</span>
+                    </button>
+                    <button id="manage-btn-ban" class="btn"
+                        style="background:rgba(0,0,0,0.1);color:var(--text-primary);border:1px solid var(--text-primary);width:100%;">
+                        <i class="fas fa-ban"></i> <span data-original="Ban Email">Ban Email</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Finance Modal -->
+    <div class="modal hidden" id="finance-modal">
+        <div class="modal-content glass-effect" style="max-width:500px;">
+            <div class="modal-header">
+                <h2 id="finance-modal-title">Add Entry</h2>
+                <button class="close-modal"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="finance-entry-id">
+                <input type="hidden" id="finance-entry-type">
+
+                <div class="form-group" id="finance-person-group" style="display:none;">
+                    <label data-original="Debtor/Creditor">Debtor/Creditor <span
+                            style="color:var(--danger)">*</span></label>
+                    <input type="text" id="finance-person" data-original-ph="Name of person or company"
+                        placeholder="Name of person or company">
+                </div>
+                <div class="form-group">
+                    <label data-original="Description">Description <span style="color:var(--danger)">*</span></label>
+                    <input type="text" id="finance-desc" data-original-ph="e.g., Office Rent, Laptop repair"
+                        placeholder="e.g., Office Rent, Laptop repair">
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label data-original="Amount">Amount <span style="color:var(--danger)">*</span></label>
+                        <input type="number" id="finance-amount" placeholder="0.00" step="0.01">
+                    </div>
+                    <div class="form-group">
+                        <label data-original="Date">Date</label>
+                        <input type="date" id="finance-date">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group" id="finance-category-group">
+                        <label data-original="Category">Category</label>
+                        <select id="finance-category">
+                            <option value="General" data-original="General">General</option>
+                            <option value="Salaries" data-original="Salaries">Salaries</option>
+                            <option value="Rent" data-original="Rent">Rent</option>
+                            <option value="Utilities" data-original="Utilities">Utilities</option>
+                            <option value="Marketing" data-original="Marketing">Marketing</option>
+                            <option value="Supplies" data-original="Supplies">Supplies</option>
+                            <option value="Software" data-original="Software">Software</option>
+                            <option value="Other" data-original="Other">Other</option>
+                        </select>
+                    </div>
+                    <div class="form-group" id="finance-due-group" style="display:none;">
+                        <label data-original="Due Date">Due Date</label>
+                        <input type="date" id="finance-due-date">
+                    </div>
+                </div>
+                <div class="form-group" id="finance-status-group" style="display:none;">
+                    <label data-original="Status">Status</label>
+                    <select id="finance-status">
+                        <option value="Unpaid" data-original="Unpaid">Unpaid</option>
+                        <option value="Paid" data-original="Paid">Paid</option>
+                        <option value="Overdue" data-original="Overdue">Overdue</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary cancel-modal" data-original="Cancel">Cancel</button>
+                <button class="btn btn-primary" id="save-finance-entry"><i class="fas fa-save"></i> <span
+                        data-original="Save">Save</span></button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Project Modal -->
+    <div class="modal hidden" id="project-modal">
+        <div class="modal-content glass-effect" style="max-width:500px;">
+            <div class="modal-header">
+                <h2>Add New Project</h2>
+                <button class="close-modal"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Project Name</label>
+                    <input type="text" id="project-name" placeholder="e.g. Website Redesign">
+                </div>
+                <div class="form-group">
+                    <label>Initial Progress (%)</label>
+                    <input type="number" id="project-progress" value="0" min="0" max="100">
+                </div>
+                <div class="form-group">
+                    <label>Status</label>
+                    <select id="project-status"
+                        style="width:100%;padding:0.75rem;border-radius:var(--radius-md);border:1px solid var(--border-color);background:var(--bg-primary);color:var(--text-primary);">
+                        <option value="Planning">Planning</option>
+                        <option value="In Progress">In Progress</option>
+                        <option value="On Hold">On Hold</option>
+                        <option value="Completed">Completed</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary cancel-modal">Cancel</button>
+                <button class="btn btn-primary" id="save-project"><i class="fas fa-save"></i> Save Project</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Client Modal -->
+    <div class="modal hidden" id="client-modal">
+        <div class="modal-content glass-effect" style="max-width:500px;">
+            <div class="modal-header">
+                <h2>Add New Client</h2>
+                <button class="close-modal"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Company/Client Name</label>
+                    <input type="text" id="client-name" placeholder="e.g. Nile Software">
+                </div>
+                <div class="form-group">
+                    <label>Contact Person</label>
+                    <input type="text" id="client-contact" placeholder="e.g. Ahmed Ali">
+                </div>
+                <div class="form-group">
+                    <label>Phone Number</label>
+                    <input type="text" id="client-phone" placeholder="01xxxxxxxxx">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary cancel-modal">Cancel</button>
+                <button class="btn btn-primary" id="save-client"><i class="fas fa-save"></i> Save Client</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Inventory Modal -->
+    <div class="modal hidden" id="inventory-modal">
+        <div class="modal-content glass-effect" style="max-width:500px;">
+            <div class="modal-header">
+                <h2>Add Inventory Item</h2>
+                <button class="close-modal"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Item Name</label>
+                    <input type="text" id="inventory-name" placeholder="e.g. Dell XPS Laptop">
+                </div>
+                <div class="form-group">
+                    <label>Category</label>
+                    <select id="inventory-category"
+                        style="width:100%;padding:0.75rem;border-radius:var(--radius-md);border:1px solid var(--border-color);background:var(--bg-primary);color:var(--text-primary);">
+                        <option value="Hardware">Hardware</option>
+                        <option value="Furniture">Furniture</option>
+                        <option value="Supplies">Supplies</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Stock Quantity</label>
+                    <input type="number" id="inventory-stock" value="1">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary cancel-modal">Cancel</button>
+                <button class="btn btn-primary" id="save-inventory"><i class="fas fa-save"></i> Save Item</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Wiki Modal -->
+    <div class="modal hidden" id="wiki-modal">
+        <div class="modal-content glass-effect" style="max-width:600px;">
+            <div class="modal-header">
+                <h2>New Knowledge Base Article</h2>
+                <button class="close-modal"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Article Title</label>
+                    <input type="text" id="wiki-title-input" placeholder="e.g. Work from Home Policy">
+                </div>
+                <div class="form-group">
+                    <label>Category</label>
+                    <select id="wiki-category-input"
+                        style="width:100%;padding:0.75rem;border-radius:var(--radius-md);border:1px solid var(--border-color);background:var(--bg-primary);color:var(--text-primary);">
+                        <option value="سياسات الشركة">سياسات الشركة</option>
+                        <option value="دليل الموظف">دليل الموظف</option>
+                        <option value="التعليمات التقنية">التعليمات التقنية</option>
+                        <option value="الموارد البشرية">الموارد البشرية</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Content</label>
+                    <textarea id="wiki-content-textarea" rows="6" placeholder="Write your article here..."
+                        style="width:100%;padding:0.75rem;border-radius:var(--radius-md);border:1px solid var(--border-color);background:var(--bg-primary);color:var(--text-primary);resize:vertical;"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary cancel-modal">Cancel</button>
+                <button class="btn btn-primary" id="save-wiki"><i class="fas fa-save"></i> Publish Article</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- AI Admin Assistant Widget -->
+    <div id="ai-assistant-widget" class="admin-only"
+        style="display:none;position:fixed;bottom:24px;left:24px;z-index:9998;">
+        <!-- Toggle Button -->
+        <button id="ai-toggle-btn" title="Al-Raed AI"
+            style="width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,#2563eb,#7c3aed);border:none;cursor:pointer;box-shadow:0 6px 20px rgba(37,99,235,0.5);display:flex;align-items:center;justify-content:center;transition:all 0.3s cubic-bezier(.175,.885,.32,1.275);position:relative;">
+            <i class="fas fa-robot" style="color:#fff;font-size:1.2rem;"></i>
+            <span id="ai-unread-dot"
+                style="display:none;position:absolute;top:3px;right:3px;width:11px;height:11px;background:#ef4444;border-radius:50%;border:2px solid white;"></span>
+        </button>
+
+        <!-- Chat Window -->
+        <div id="ai-chat-window"
+            style="display:none;position:fixed;bottom:90px;left:16px;width:min(350px, calc(100vw - 32px));height:min(500px, calc(100vh - 120px));border-radius:16px;flex-direction:column;overflow:hidden;box-shadow:0 16px 50px rgba(0,0,0,0.4);border:1px solid rgba(255,255,255,0.08);background:var(--bg-primary);z-index:9998;">
+            <!-- Header (compact) -->
+            <div
+                style="padding:0.65rem 0.9rem;background:linear-gradient(135deg,#1d4ed8,#7c3aed);display:flex;justify-content:space-between;align-items:center;flex-shrink:0;min-height:52px;">
+                <div style="display:flex;align-items:center;gap:0.6rem;overflow:hidden;">
+                    <div
+                        style="position:relative;width:34px;height:34px;border-radius:50%;background:rgba(255,255,255,0.15);display:flex;align-items:center;justify-content:center;border:1.5px solid rgba(255,255,255,0.3);flex-shrink:0;">
+                        <i class="fas fa-robot" style="color:#fff;font-size:0.95rem;"></i>
+                    </div>
+                    <div style="overflow:hidden;">
+                        <div style="font-weight:700;font-size:0.88rem;color:#fff;white-space:nowrap;">الرائد الذكي
+                            (Al-Raed AI)</div>
+                        <div style="font-size:0.65rem;color:rgba(255,255,255,0.7);white-space:nowrap;">نظام الذكاء
+                            المركزي</div>
+                    </div>
+                </div>
+                <div style="display:flex;gap:0.35rem;flex-shrink:0;">
+                    <button id="ai-clear-btn" title="Clear"
+                        style="background:rgba(255,255,255,0.12);border:none;color:#fff;cursor:pointer;width:28px;height:28px;border-radius:50%;font-size:0.7rem;display:flex;align-items:center;justify-content:center;"><i
+                            class="fas fa-trash-alt"></i></button>
+                    <button id="ai-close-btn" title="Close"
+                        style="background:rgba(255,255,255,0.12);border:none;color:#fff;cursor:pointer;width:28px;height:28px;border-radius:50%;font-size:0.8rem;display:flex;align-items:center;justify-content:center;"><i
+                            class="fas fa-times"></i></button>
+                </div>
+            </div>
+
+            <!-- Messages -->
+            <div id="ai-messages"
+                style="flex:1;overflow-y:auto;padding:0.9rem;display:flex;flex-direction:column;gap:0.55rem;background:var(--bg-primary);">
+            </div>
+
+            <!-- Typing Indicator -->
+            <div id="ai-typing" style="display:none;padding:0.3rem 0.9rem 0.1rem;background:var(--bg-primary);">
+                <div style="display:flex;gap:0.5rem;align-items:center;">
+                    <div
+                        style="width:24px;height:24px;border-radius:50%;background:linear-gradient(135deg,#2563eb,#7c3aed);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                        <i class="fas fa-robot" style="color:#fff;font-size:0.6rem;"></i>
+                    </div>
+                    <div
+                        style="background:var(--bg-secondary);border:1px solid var(--border-color);padding:0.45rem 0.8rem;border-radius:12px;border-bottom-left-radius:3px;display:flex;gap:4px;align-items:center;">
+                        <span class="ai-dot"></span><span class="ai-dot" style="animation-delay:0.15s;"></span><span
+                            class="ai-dot" style="animation-delay:0.3s;"></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Input -->
+            <div
+                style="padding:0.65rem 0.75rem;border-top:1px solid var(--border-color);background:var(--bg-secondary);display:flex;gap:0.45rem;align-items:flex-end;flex-shrink:0;">
+                <textarea id="ai-input" rows="1" placeholder="اكتب هنا..."
+                    style="flex:1;padding:0.55rem 0.8rem;border-radius:10px;border:1.5px solid var(--border-color);background:var(--bg-primary);color:var(--text-primary);font-family:inherit;font-size:0.85rem;resize:none;overflow:hidden;line-height:1.5;outline:none;box-sizing:border-box;max-height:80px;transition:border-color 0.2s;"></textarea>
+                <button id="ai-send-btn"
+                    style="width:38px;height:38px;border-radius:10px;background:linear-gradient(135deg,#2563eb,#7c3aed);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 3px 10px rgba(37,99,235,0.4);transition:all 0.2s;"><i
+                        class="fas fa-paper-plane" style="color:#fff;font-size:0.8rem;"></i></button>
+            </div>
+        </div>
+    </div>
+
+    <style>
+        @keyframes ai-ping {
+
+            0%,
+            100% {
+                transform: scale(1);
+                opacity: 1;
+            }
+
+            50% {
+                transform: scale(1.5);
+                opacity: 0.5;
+            }
+        }
+
+        .ai-dot {
+            width: 6px;
+            height: 6px;
+            background: var(--text-secondary);
+            border-radius: 50%;
+            display: inline-block;
+            animation: ai-bounce 1.1s infinite ease-in-out;
+        }
+
+        @keyframes ai-bounce {
+
+            0%,
+            100% {
+                transform: translateY(0);
+                opacity: 0.4;
+            }
+
+            40% {
+                transform: translateY(-5px);
+                opacity: 1;
+            }
+        }
+
+        .ai-chip {
+            background: rgba(37, 99, 235, 0.08);
+            border: 1px solid rgba(37, 99, 235, 0.2);
+            color: var(--primary-color);
+            padding: 0.25rem 0.65rem;
+            border-radius: 20px;
+            font-size: 0.74rem;
+            cursor: pointer;
+            font-family: inherit;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+
+        .ai-chip:hover {
+            background: rgba(37, 99, 235, 0.18);
+            transform: translateY(-1px);
+        }
+
+        #ai-messages::-webkit-scrollbar {
+            width: 3px;
+        }
+
+        #ai-messages::-webkit-scrollbar-thumb {
+            background: var(--border-color);
+            border-radius: 4px;
+        }
+
+        #ai-toggle-btn:hover {
+            transform: scale(1.1) rotate(-6deg);
+        }
+
+        #ai-toggle-btn {
+            transition: transform 0.3s cubic-bezier(.175, .885, .32, 1.275), opacity 0.3s ease !important;
+        }
+
+        #ai-send-btn:hover {
+            transform: scale(1.08);
+        }
+
+        /* On mobile: take more screen space */
+        @media (max-width: 480px) {
+            #ai-chat-window {
+                left: 8px !important;
+                right: 8px !important;
+                width: calc(100vw - 16px) !important;
+                bottom: 80px !important;
+                height: calc(100vh - 110px) !important;
+            }
+
+            #ai-assistant-widget {
+                left: 12px !important;
+                right: auto !important;
+                bottom: 16px !important;
+            }
+        }
+    </style>
+
+    <!-- Chat Room Creation Modal -->
+    <div class="modal hidden" id="chat-room-modal" style="z-index:10001;">
+        <div class="modal-content glass-effect" style="max-width:450px;">
+            <div class="modal-header">
+                <h2 id="room-modal-title"><i class="fas fa-users"></i> مساحة جديدة</h2>
+                <button class="close-modal" onclick="ChatManager.closeRoomModal()"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="room-type-hidden">
+                <div style="text-align:center;margin-bottom:1.5rem;">
+                    <div style="position:relative;display:inline-block;">
+                        <img id="room-img-preview"
+                            src="https://ui-avatars.com/api/?name=Chat&background=2563eb&color=fff&bold=true&size=128"
+                            style="width:100px;height:100px;border-radius:24px;object-fit:cover;border:3px solid var(--primary-color);">
+                        <label for="room-img-input"
+                            style="position:absolute;bottom:-5px;right:-5px;background:var(--primary-color);color:#fff;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.2);">
+                            <i class="fas fa-camera" style="font-size:0.8rem;"></i>
+                        </label>
+                        <input type="file" id="room-img-input" accept="image/*" style="display:none;"
+                            onchange="ChatManager.handleRoomImg(this)">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>الاسم</label>
+                    <input type="text" id="room-name" placeholder="اسم المساحة...">
+                </div>
+                <div class="form-group">
+                    <label>الوصف (اختياري)</label>
+                    <textarea id="room-desc" rows="2" placeholder="عن ماذا تتحدث هذه المساحة؟"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>إرسال دعوة للأعضاء</label>
+                    <div id="room-members-list"
+                        style="max-height:150px;overflow-y:auto;background:var(--bg-secondary);border-radius:var(--radius-md);padding:0.5rem;border:1px solid var(--border-color);display:grid;grid-template-columns:1fr;gap:0.3rem;">
+                        <!-- Populated via JS -->
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="ChatManager.closeRoomModal()">إلغاء</button>
+                <button class="btn btn-primary" onclick="ChatManager.createRoom()" style="flex:1;"><i
+                        class="fas fa-paper-plane"></i> إنشاء وإرسال الدعوات</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="js/store.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/notifications.js"></script>
+    <script src="js/theme.js"></script>
+    <script src="js/tasks.js"></script>
+    <script src="js/team.js"></script>
+    <script src="js/chat.js"></script>
+    <script src="js/calendar.js"></script>
+    <script src="js/reports.js"></script>
+    <script src="js/audit.js"></script>
+    <script src="js/admin.js"></script>
+    <script src="js/lang.js"></script>
+    <script src="js/finance.js"></script>
+    <script src="js/support.js"></script>
+    <script src="js/drive.js"></script>
+    <script src="js/projects.js"></script>
+    <script src="js/clients.js"></script>
+    <script src="js/inventory.js"></script>
+    <script src="js/wiki.js"></script>
+    <script src="js/ai-assistant.js"></script>
+    <script src="js/app.js"></script>
+</body>
+
+</html>
