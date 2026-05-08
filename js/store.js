@@ -25,43 +25,42 @@ const Store = {
             const db = firebase.firestore();
             console.log('Store: Connecting to Firebase Cloud Sync...');
 
-            // ✅ Real-time Firestore Listener for Workspace Data
-            db.collection('workspace').onSnapshot((snapshot) => {
-                if (Store._syncing) return; // Prevent loop
+            // ✅ Real-time Firestore Listeners for ALL collections
+            const collections = ['tasks', 'team', 'finance', 'audit_logs', 'messages', 'events', 'presence', 'users', 'workspace'];
+            
+            collections.forEach(collectionName => {
+                db.collection(collectionName).onSnapshot((snapshot) => {
+                    if (Store._syncing) return; // Prevent loop
 
-                snapshot.docChanges().forEach((change) => {
-                    const key = change.doc.id;
-                    const data = change.doc.data();
-                    
-                    // Skip if the update came from THIS browser recently
-                    if (data.updatedBy === (AuthManager.currentUser?.id || 'anonymous') && 
-                        (Date.now() - data.timestamp < 2000)) return;
+                    snapshot.docChanges().forEach((change) => {
+                        const key = change.doc.id;
+                        const data = change.doc.data();
+                        
+                        // Skip if the update came from THIS browser recently
+                        if (data.updatedBy === (AuthManager.currentUser?.id || 'anonymous') && 
+                            (Date.now() - data.timestamp < 2000)) return;
 
-                    console.log(`Store: Cloud Update received for [${key}]`);
+                        console.log(`Store: Cloud Update received for [${key}] from collection [${collectionName}]`);
 
-                    Store._syncing = true;
-                    try {
-                        if (change.type === 'removed') {
-                            localStorage.removeItem(key);
-                        } else {
-                            localStorage.setItem(key, JSON.stringify(data.value));
+                        Store._syncing = true;
+                        try {
+                            if (change.type === 'removed') {
+                                localStorage.removeItem(key);
+                            } else {
+                                localStorage.setItem(key, JSON.stringify(data.value));
+                            }
+                        } finally {
+                            Store._syncing = false;
                         }
-                    } finally {
-                        Store._syncing = false;
-                    }
 
-                    // Show notification for important changes
-                    if (data.value !== null) {
-                        Store._notifyUserOfChange(key, data.userName || 'زميل');
-                    }
-
-                    // Notify the app that data changed
-                    window.dispatchEvent(new CustomEvent('storeUpdated', { detail: { key, value: data.value } }));
-                    // Refresh relevant UI sections
-                    Store._refreshSection(key);
+                        // Notify the app that data changed
+                        window.dispatchEvent(new CustomEvent('storeUpdated', { detail: { key, value: data.value } }));
+                        // Refresh relevant UI sections
+                        Store._refreshSection(key);
+                    });
+                }, (err) => {
+                    console.error(`Store: Sync Error in [${collectionName}]:`, err);
                 });
-            }, (err) => {
-                console.error('Store: Firestore Sync Error:', err);
             });
 
             // ✅ Track online users via Firestore 'presence' collection
