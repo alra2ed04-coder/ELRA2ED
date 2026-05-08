@@ -202,7 +202,11 @@ const Store = {
                     updatedBy: me ? me.id : 'anonymous',
                     userName: me ? me.name : 'Unknown',
                     timestamp: Date.now()
-                }).catch(err => console.warn('Store: Cloud sync delayed...', err.message));
+                }).then(() => {
+                    console.log(`Store: [${key}] successfully synced to Cloud.`);
+                }).catch(err => {
+                    console.warn('Store: Cloud sync delayed (Offline mode active)', err.message);
+                });
             }
 
             // 3. Dispatch local event for same-tab reactivity
@@ -256,6 +260,23 @@ const Store = {
         });
         if (logs.length > 200) logs.splice(200);
         Store.set('auditLogs', logs);
+    // Test the cloud connection manually
+    testCloudConnection: () => {
+        if (typeof firebase === 'undefined' || !firebase.apps.length) {
+            NotificationManager.add('⚠️ فشل الاتصال بالسحاب (وضع محلي)', 'fa-exclamation-triangle', 'error');
+            return;
+        }
+        
+        const db = firebase.firestore();
+        db.collection('workspace').doc('test_ping').set({
+            timestamp: Date.now(),
+            user: AuthManager.currentUser?.name || 'Test User'
+        }).then(() => {
+            NotificationManager.add('✅ تم اختبار الربط السحابي بنجاح!', 'fa-cloud-check', 'system');
+            console.log('Store: Cloud Ping Successful.');
+        }).catch(err => {
+            NotificationManager.add('❌ خطأ في الربط: ' + err.message, 'fa-times', 'error');
+        });
     }
 };
 
