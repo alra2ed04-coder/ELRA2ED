@@ -182,13 +182,20 @@ const AuthManager = {
     },
 
     logout: () => {
+        // 1. Sign out from Firebase if connected
+        if (typeof firebase !== 'undefined' && firebase.apps.length) {
+            firebase.auth().signOut().catch(err => console.warn("Logout: Firebase signout delayed", err));
+        }
+
+        // 2. Clear Local Session
         localStorage.removeItem('currentUser');
         AuthManager.currentUser = null;
-        document.getElementById('auth-wrapper').classList.remove('hidden');
-        document.getElementById('app-wrapper').classList.add('hidden');
-        // Reset login form
-        document.getElementById('login-email').value = '';
-        document.getElementById('login-password').value = '';
+        
+        // 3. Clear any sensitive workspace cache if needed
+        // localStorage.clear(); // Optional: uncomment if you want total wipe
+
+        // 4. Force Reload for a clean state
+        window.location.reload();
     },
 
     checkAuth: () => {
