@@ -4,17 +4,6 @@
 
 const FinanceManager = {
     init: () => {
-        // Add Demo Data if empty
-        const existing = Store.get('finance') || [];
-        if (existing.length === 0) {
-            const demo = [
-                { id: 'demo1', type: 'expense', description: 'Office Rent - May', category: 'Rent', amount: 1500, date: new Date().toISOString().split('T')[0], createdAt: new Date().toISOString() },
-                { id: 'demo2', type: 'expense', description: 'Digital Marketing Ads', category: 'Marketing', amount: 450, date: new Date().toISOString().split('T')[0], createdAt: new Date().toISOString() },
-                { id: 'demo3', type: 'debt', description: 'Equipment Purchase', person: 'Tech Supply Co.', amount: 2000, date: '2026-05-01', dueDate: '2026-06-01', status: 'Unpaid', createdAt: new Date().toISOString() }
-            ];
-            Store.set('finance', demo);
-        }
-
         FinanceManager.renderExpenses();
         FinanceManager.renderDebts();
 

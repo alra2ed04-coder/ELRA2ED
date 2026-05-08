@@ -31,10 +31,59 @@ const ChatManager = {
 
         window.addEventListener('storeUpdated', (e) => {
             const key = e.detail?.key;
-            if (key === 'chat_rooms' || key === 'chat_invitations' || key?.startsWith('room_msgs_') || key === 'messages' || key === 'team') {
+            const value = e.detail?.value;
+            
+            if (key === 'chat_rooms' || key === 'chat_invitations' || key === 'team') {
                 ChatManager.render();
             }
+            
+            // Handle Room Message Notifications
+            if (key?.startsWith('room_msgs_')) {
+                const roomId = key.replace('room_msgs_', '');
+                const msgs = value || [];
+                const lastMsg = msgs[msgs.length - 1];
+                const me = AuthManager.currentUser;
+
+                if (lastMsg && lastMsg.senderId !== me.id) {
+                    if (ChatManager.currentReceiverId === roomId) {
+                        ChatManager.renderMessages();
+                    } else {
+                        NotificationManager.add(`💬 ${lastMsg.senderName}: ${lastMsg.content.substring(0, 30)}${lastMsg.content.length > 30 ? '...' : ''}`, 'fa-comments', 'message', roomId);
+                    }
+                } else if (ChatManager.currentReceiverId === roomId) {
+                    ChatManager.renderMessages();
+                }
+            }
         });
+
+        if (Store._socket) {
+            Store._socket.on('userTyping', ({ userId, isTyping }) => {
+                const statusEl = document.getElementById('chat-active-status');
+                if (ChatManager.currentReceiverId === userId && statusEl) {
+                    if (isTyping) {
+                        statusEl.innerHTML = `<span style="color:var(--success);"><i class="fas fa-pencil-alt fa-spin"></i> يكتب الآن...</span>`;
+                    } else {
+                        ChatManager._updateActiveStatus(userId);
+                    }
+                }
+            });
+            Store._socket.on('privateMessage', (msg) => {
+                const me = AuthManager.currentUser;
+                if (!me) return;
+                const key = ChatManager._getPrivateKey(me, msg.senderId);
+                const msgs = JSON.parse(localStorage.getItem(key) || '[]');
+                msgs.push(msg);
+                localStorage.setItem(key, JSON.stringify(msgs));
+
+                if (ChatManager.currentType === 'private' && ChatManager.currentReceiverId === msg.senderId) {
+                    ChatManager.renderMessages();
+                } else {
+                    NotificationManager.add(`💬 رسالة جديدة من ${msg.senderName}`, 'fa-comment', 'chat');
+                }
+            });
+        }
+        if (typeof AuditManager !== 'undefined') AuditManager.init();
+        if (typeof FinanceManager !== 'undefined') FinanceManager.init();
 
         // Global Avatar Error Handler
         document.addEventListener('error', (e) => {
@@ -199,7 +248,7 @@ const ChatManager = {
         team.filter(m => m.id !== me?.id).forEach(member => {
             const cleanName = member.name.replace(/\s*\(.*?\)\s*/g, '');
             const avatar = member.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(cleanName)}&background=2563eb&color=fff&bold=true`;
-            const isOnline = (Store._onlineUsers || []).includes(member.id);
+            const isOnline = Store._onlineUsers.includes(member.id);
             const key = ChatManager._getPrivateKey(me, member.id);
             const lastMsgs = JSON.parse(localStorage.getItem(key) || '[]');
             const lastMsg = lastMsgs.length > 0 ? lastMsgs[lastMsgs.length - 1] : null;
@@ -329,7 +378,7 @@ const ChatManager = {
             if (isSelf) {
                 statusEl.innerHTML = `<i class="fas fa-bookmark" style="font-size:0.65rem;"></i> ${LangManager.t('My Profile')}`;
             } else {
-                const isOnline = (Store._onlineUsers || []).includes(id);
+                const isOnline = Store._onlineUsers.includes(id);
                 statusEl.innerHTML = isOnline
                     ? `<span style="width:7px;height:7px;border-radius:50%;background:var(--success);display:inline-block;"></span> ${LangManager.t('Active')}`
                     : `<span style="width:7px;height:7px;border-radius:50%;background:var(--text-secondary);display:inline-block;"></span> ${LangManager.t('Planning')}`;
@@ -346,6 +395,15 @@ const ChatManager = {
         if (inputArea) { inputArea.style.opacity = '1'; inputArea.style.pointerEvents = 'auto'; }
 
         ChatManager.renderMessages();
+    },
+
+    _updateActiveStatus: (id) => {
+        const statusEl = document.getElementById('chat-active-status');
+        if (!statusEl) return;
+        const isOnline = Store._onlineUsers.includes(id);
+        statusEl.innerHTML = isOnline
+            ? `<span style="width:7px;height:7px;border-radius:50%;background:var(--success);display:inline-block;"></span> ${LangManager.t('Active')}`
+            : `<span style="width:7px;height:7px;border-radius:50%;background:var(--text-secondary);display:inline-block;"></span> ${LangManager.t('Planning')}`;
     },
 
     // ─── Room Creation ────────────────────────────────────────
@@ -456,18 +514,12 @@ const ChatManager = {
         const me = AuthManager.currentUser;
         if (!me || !ChatManager.currentReceiverId) return [];
 
-        const allMessages = Store.get('messages') || [];
-
         if (ChatManager.currentType === 'private') {
-            if (ChatManager._isSelfChat) {
-                return allMessages.filter(m => m.senderId === me.id && m.receiverId === me.id);
-            }
-            return allMessages.filter(m => 
-                (m.senderId === me.id && m.receiverId === ChatManager.currentReceiverId) ||
-                (m.senderId === ChatManager.currentReceiverId && m.receiverId === me.id)
-            );
+            if (ChatManager._isSelfChat) return JSON.parse(localStorage.getItem(ChatManager._getSelfKey(me)) || '[]');
+            const key = ChatManager._getPrivateKey(me, ChatManager.currentReceiverId);
+            return JSON.parse(localStorage.getItem(key) || '[]');
         } else {
-            return allMessages.filter(m => m.receiverId === ChatManager.currentReceiverId);
+            return Store.get(ChatManager._getRoomKey(ChatManager.currentReceiverId)) || [];
         }
     },
 
@@ -602,23 +654,37 @@ const ChatManager = {
                 timestamp: new Date().toISOString()
             };
 
-            // Save to Cloud Store (Shared)
-            const allMessages = Store.get('messages') || [];
-            allMessages.push(msg);
-            Store.set('messages', allMessages);
+            const msgs = ChatManager.getMessages();
+            msgs.push(msg);
+            ChatManager.saveMessages(msgs);
 
-            // Also update private chat state for real-time listener
-            if (ChatManager.currentType === 'private') {
-                const privateChats = Store.get('private_chats') || [];
-                privateChats.push({ ...msg, toId: ChatManager.currentReceiverId });
-                Store.set('private_chats', privateChats);
+            if (ChatManager.currentType === 'private' && !ChatManager._isSelfChat && Store._socket?.connected) {
+                Store._socket.emit('privateMessage', { ...msg, toId: ChatManager.currentReceiverId });
             }
 
             input.value = '';
             ChatManager._pendingAttachment = null;
             document.getElementById('chat-attachment-preview').style.display = 'none';
             ChatManager.renderMessages();
+            
+            // Stop typing status
+            if (Store._socket) {
+                Store._socket.emit('typing', { userId: me.id, isTyping: false });
+            }
         };
+
+        let typingTimeout;
+        input.addEventListener('input', () => {
+            if (Store._socket) {
+                const me = AuthManager.currentUser;
+                Store._socket.emit('typing', { userId: me.id, isTyping: true });
+                
+                clearTimeout(typingTimeout);
+                typingTimeout = setTimeout(() => {
+                    Store._socket.emit('typing', { userId: me.id, isTyping: false });
+                }, 3000);
+            }
+        });
 
         btn.onclick = send;
         input.onkeydown = (e) => { if (e.key === 'Enter') send(); };
@@ -680,4 +746,4 @@ _chatStyles.textContent = `
 document.head.appendChild(_chatStyles);
 
 window.ChatManager = ChatManager;
-// Note: ChatManager.init() is called by App.init() after authentication.
+ChatManager.init();

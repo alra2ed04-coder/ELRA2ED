@@ -19,10 +19,7 @@ const WikiManager = {
         if (stored) {
             WikiManager.articles = JSON.parse(stored);
         } else {
-            WikiManager.articles = [
-                { id: Date.now() - 100000, title: 'قواعد العمل عن بعد', category: 'سياسات الشركة', content: 'يسمح للموظفين بالعمل عن بعد يومين في الأسبوع (الأحد والخميس) بالتنسيق مع مدير الفريق.' },
-                { id: Date.now(), title: 'ضبط البريد الإلكتروني', category: 'التعليمات التقنية', content: 'لضبط البريد الإلكتروني على الهاتف يرجى استخدام تطبيق Outlook واستخدام الإعدادات التلقائية.' }
-            ];
+            WikiManager.articles = [];
             WikiManager.saveToStorage();
         }
         WikiManager.render();

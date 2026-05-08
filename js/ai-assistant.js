@@ -227,7 +227,7 @@ const AIAssistant = {
 
         AIAssistant.lastTopic = topic;
         AIAssistant.appendMessage(reply, 'ai');
-        AIAssistant.speak(reply);
+        // AIAssistant.speak(reply); // Removed sound as per user request
     },
 
     // ── THE WIZARD HANDLER ──

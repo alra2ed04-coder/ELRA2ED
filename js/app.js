@@ -73,9 +73,16 @@ const App = {
                 }
             });
             if(tUpdated) Store.set('team', team);
-        } catch(e) {}
+        // ONE-TIME CLEANUP FOR DUMMY DATA
+        if (!localStorage.getItem('wsCleanedV2')) {
+            const modules = ['tasks', 'finance', 'inventory', 'projects', 'clients', 'events', 'announcements', 'chat_rooms', 'chat_invitations', 'auditLogs', 'cloud_drive'];
+            modules.forEach(m => Store.set(m, []));
+            localStorage.setItem('wsCleanedV2', 'true');
+            console.log('App: Platform dummy data cleared.');
+        }
+    } catch(e) {}
 
-        // Connect to real-time sync server AFTER user data is ready
+        // ✅ Connect to real-time sync server FIRST
         Store.connectSync();
 
         ThemeManager.init();
@@ -91,6 +98,15 @@ const App = {
         ReportsManager.init();
         AdminPanel.init();
 
+        // Initialize Remaining Modules
+        if (typeof SupportManager !== 'undefined') SupportManager.init();
+        if (typeof InventoryManager !== 'undefined') InventoryManager.init();
+        if (typeof FinanceManager !== 'undefined') FinanceManager.init();
+        if (typeof DriveManager !== 'undefined') DriveManager.init();
+        if (typeof ProjectsManager !== 'undefined') ProjectsManager.init();
+        if (typeof ClientsManager !== 'undefined') ClientsManager.init();
+        if (typeof WikiManager !== 'undefined') WikiManager.init();
+
         if (typeof AuditManager !== 'undefined') AuditManager.init();
         if (typeof FinanceManager !== 'undefined') FinanceManager.init();
         
@@ -99,6 +115,7 @@ const App = {
         if (typeof ClientsManager !== 'undefined') ClientsManager.init();
         if (typeof InventoryManager !== 'undefined') InventoryManager.init();
         if (typeof WikiManager !== 'undefined') WikiManager.init();
+        if (typeof CommandPalette !== 'undefined') CommandPalette.init();
 
         App.startDashboardClock();
         App.updateDashboardStats();
@@ -192,9 +209,9 @@ const App = {
 
                 // ── AI Widget: hide in chat to avoid button conflicts ──
                 const aiWidget = document.getElementById('ai-assistant-widget');
-                const toggleBtn = document.getElementById('ai-toggle-btn');
-                if (aiWidget) {
+                if (aiWidget && aiWidget.style.display !== 'none') {
                     const hiddenSections = ['chat-section'];
+                    const toggleBtn = document.getElementById('ai-toggle-btn');
                     if (hiddenSections.includes(target)) {
                         // Slide out then hide
                         if (toggleBtn) {
@@ -287,15 +304,13 @@ const App = {
     },
 
     updateDashboardStats: () => {
-        const tasks  = Store.get('tasks') || [];
-        const team   = Store.get('team')  || [];
-        const events = Store.get('events')|| [];
+        const tasks = Store.get('tasks') || [];
+        const team = Store.get('team') || [];
+        const events = Store.get('events') || [];
 
         const activeTasks = tasks.filter(t => t.status !== 'done').length;
-        const doneTasks   = tasks.filter(t => t.status === 'done').length;
-        const totalTasks  = tasks.length;
-        const progress    = totalTasks > 0 ? Math.round((doneTasks / totalTasks) * 100) : 0;
-
+        const doneTasks = tasks.filter(t => t.status === 'done').length;
+        const totalTasks = tasks.length;
         const todayStr = new Date().toISOString().slice(0, 10);
         const upcoming = events.filter(e => e.date >= todayStr).length + tasks.filter(t => t.deadline >= todayStr && t.status !== 'done').length;
 
@@ -304,62 +319,19 @@ const App = {
         const briefingText = document.getElementById('ai-briefing-text');
         if (briefingCard && briefingText) {
             briefingCard.style.display = 'block';
-            const isAr = document.documentElement.dir === 'rtl';
-            
-            let msg = "";
-            if (isAr) {
-                msg = `يا مدير، عندك <b>${activeTasks}</b> ${LangManager.t('open tasks currently')}. `;
-                if (upcoming > 0) msg += `وفي <b>${upcoming}</b> ${LangManager.t('items need your attention today/tomorrow')}. `;
-                if (progress > 50) msg += LangManager.t('Great job! You finished more than half the work') + ` 🚀`;
-                else msg += LangManager.t('Let us get to work and finish what we have') + ` 💪`;
-            } else {
-                msg = `Director, you have <b>${activeTasks}</b> open tasks. `;
-                if (upcoming > 0) msg += `And <b>${upcoming}</b> items need your attention soon. `;
-                if (progress > 50) msg += `Great job! You've finished more than half. 🚀`;
-                else msg += `Let's get to work! 💪`;
-            }
-            briefingText.innerHTML = msg;
+            briefingText.innerHTML = (typeof BriefingAI !== 'undefined') ? BriefingAI.generate() : "Loading insights...";
         }
 
-        if (document.getElementById('stat-tasks'))  document.getElementById('stat-tasks').textContent  = activeTasks;
-        if (document.getElementById('stat-team'))   document.getElementById('stat-team').textContent   = team.length;
+        if (document.getElementById('stat-tasks')) document.getElementById('stat-tasks').textContent = activeTasks;
+        if (document.getElementById('stat-team')) document.getElementById('stat-team').textContent = team.length;
         if (document.getElementById('stat-events')) document.getElementById('stat-events').textContent = upcoming;
-
-        const todoTasks = tasks.filter(t => t.status === 'todo').length;
-        const inProgressTasks = tasks.filter(t => t.status === 'inprogress').length;
-
-        // Render Chart
-        const ctx = document.getElementById('tasks-chart');
-        if (ctx && typeof Chart !== 'undefined') {
-            if (window.tasksChartInstance) {
-                window.tasksChartInstance.destroy();
-            }
-            window.tasksChartInstance = new Chart(ctx, {
-                type: 'doughnut',
-                data: {
-                    labels: ['To Do', 'In Progress', 'Done'],
-                    datasets: [{
-                        data: [todoTasks, inProgressTasks, doneTasks],
-                        backgroundColor: ['#ef4444', '#f59e0b', '#10b981'],
-                        borderWidth: 0,
-                        hoverOffset: 4
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: { position: 'bottom', labels: { color: 'var(--text-secondary)' } }
-                    },
-                    cutout: '70%'
-                }
-            });
-        }
 
         // Recent activity from audit logs
         const activityList = document.getElementById('activity-list');
         if (activityList) {
-            const logs = (Store.get('auditLogs') || []).slice(0, 5);
+            const logs = (Store.get('auditLogs') || []).slice(0, 8);
+            const isAr = document.documentElement.dir === 'rtl';
+
             const iconMap = {
                 'Created Task': 'fa-plus-circle', 'Deleted Task': 'fa-trash',
                 'Updated Task': 'fa-edit', 'Added Team Member': 'fa-user-plus',
@@ -367,19 +339,81 @@ const App = {
                 'Profile Updated': 'fa-user-edit', 'User Registered': 'fa-user-check',
                 'Password Changed': 'fa-key', 'Sent group message': 'fa-comment',
                 'Created Calendar Event': 'fa-calendar-plus',
+                'Added Project': 'fa-project-diagram', 'Deleted Project': 'fa-folder-minus',
+                'Added Client': 'fa-user-tie', 'Added Inventory Item': 'fa-box'
             };
+
+            const actionTranslations = {
+                'Created Task': isAr ? 'أنشأ مهمة' : 'created a task',
+                'Deleted Task': isAr ? 'حذف مهمة' : 'deleted a task',
+                'Updated Task': isAr ? 'حدث مهمة' : 'updated a task',
+                'Added Team Member': isAr ? 'أضاف عضواً جديداً' : 'added a team member',
+                'Removed Team Member': isAr ? 'حذف عضواً من الفريق' : 'removed a team member',
+                'Role Changed': isAr ? 'غير الرتبة' : 'changed role',
+                'Profile Updated': isAr ? 'حدث الملف الشخصي' : 'updated profile',
+                'User Registered': isAr ? 'سجل حساباً جديداً' : 'registered a new account',
+                'Sent group message': isAr ? 'أرسل رسالة جماعية' : 'sent a group message',
+                'Created Calendar Event': isAr ? 'أضاف موعداً جديداً' : 'created a calendar event',
+                'Added Project': isAr ? 'بدأ مشروعاً جديداً' : 'started a new project',
+                'Added Client': isAr ? 'أضاف عميلاً جديداً' : 'added a new client',
+                'Added Inventory Item': isAr ? 'أضاف صنفاً للمخزن' : 'added an inventory item'
+            };
+
+            const colorMap = {
+                'Created Task': '#3b82f6', 'Deleted Task': '#ef4444',
+                'Added Team Member': '#10b981', 'Role Changed': '#8b5cf6',
+                'Sent group message': '#6366f1'
+            };
+
             activityList.innerHTML = logs.length === 0
-                ? '<li style="color:var(--text-secondary);text-align:center;padding:1rem;">No recent activity</li>'
+                ? `<li style="color:var(--text-secondary);text-align:center;padding:2rem;"><i class="fas fa-history" style="font-size:2rem;display:block;margin-bottom:0.5rem;opacity:0.2;"></i>${LangManager.t('No recent activity')}</li>`
                 : logs.map(log => `
-                    <li>
-                        <div class="activity-icon"><i class="fas ${iconMap[log.action] || 'fa-circle'}"></i></div>
-                        <div class="activity-details">
-                            <p><strong>${log.userName}</strong> ${log.action.toLowerCase()}: <em>${log.target || ''}</em></p>
-                            <span class="activity-time">${new Date(log.timestamp).toLocaleString([], {month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})}</span>
+                    <li style="display:flex; gap:1rem; padding:1rem; border-bottom:1px solid var(--border-color); transition:var(--transition); border-radius:var(--radius-md);" onmouseenter="this.style.background='rgba(59,130,246,0.03)'" onmouseleave="this.style.background='transparent'">
+                        <div class="activity-icon" style="width:36px; height:36px; border-radius:50%; background:${colorMap[log.action] || 'var(--bg-primary)'}20; color:${colorMap[log.action] || 'var(--text-secondary)'}; display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                            <i class="fas ${iconMap[log.action] || 'fa-circle'}"></i>
+                        </div>
+                        <div class="activity-details" style="flex:1;">
+                            <p style="margin:0; font-size:0.9rem;"><strong>${log.userName}</strong> ${actionTranslations[log.action] || log.action.toLowerCase()}${log.target ? ': <em style="color:var(--primary-color)">' + log.target + '</em>' : ''}</p>
+                            <span class="activity-time" style="font-size:0.75rem; color:var(--text-secondary); opacity:0.7;">${new Date(log.timestamp).toLocaleString(isAr ? 'ar-EG' : 'en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
                         </div>
                     </li>
                 `).join('');
         }
+
+        // Financial Forecast Simulation (Dynamic AI Calculation)
+        const forecastEl = document.getElementById('finance-forecast-chart');
+        if (forecastEl) {
+            const records = Store.get('finance') || [];
+            const projects = Store.get('projects') || [];
+            const tasks = Store.get('tasks') || [];
+            const doneTasks = tasks.filter(t => t.status === 'done').length;
+            const expenses = records.filter(r => r.type === 'expense');
+            const totalExp = expenses.reduce((sum, e) => sum + e.amount, 0);
+
+            let finalForecast = 0;
+            if (totalExp > 0 || projects.length > 0 || tasks.length > 0) {
+                const baseEst = totalExp > 0 ? (totalExp * 1.6) : 500;
+                const projectEst = projects.length * 1200;
+                finalForecast = Math.round(baseEst + projectEst);
+            }
+
+            const isAr = document.documentElement.dir === 'rtl';
+            const currency = isAr ? 'جنيه' : '$';
+            const growthRate = tasks.length > 0 ? (doneTasks / tasks.length * 40).toFixed(0) : 0;
+
+            forecastEl.innerHTML = `
+                <div style="text-align:center; width:100%;">
+                    <div style="font-size:1.5rem; font-weight:800; color:var(--success); margin-bottom:0.5rem;">+${finalForecast.toLocaleString()} ${currency}</div>
+                    <div style="font-size:0.8rem; color:var(--text-secondary); opacity:0.8;">${LangManager.t('Growth forecast for next month')}: <span style="color:var(--success); font-weight:700;">+${growthRate > 0 ? growthRate : (finalForecast > 0 ? 5 : 0)}%</span></div>
+                    <div style="margin-top:1.5rem; height:8px; background:rgba(0,0,0,0.05); border-radius:10px; overflow:hidden;">
+                        <div style="width:${finalForecast > 0 ? Math.min(100, 20 + parseInt(growthRate)) : 0}%; height:100%; background:var(--success-gradient); border-radius:10px; transition: width 1s ease-out;"></div>
+                    </div>
+                    <p style="font-size:0.7rem; margin-top:0.5rem; color:var(--text-secondary);">${LangManager.t('Based on recent activity and current workload')}</p>
+                </div>
+            `;
+        }
+        App.renderTasksChart();
+        App.renderFinanceTrendChart();
     },
 
     checkUpcomingEvents: () => {
@@ -485,29 +519,116 @@ const App = {
         App.initSearch();
     },
 
-    initSearch: () => {
-        const searchInput = document.querySelector('.search-bar input');
-        if (!searchInput) return;
+    renderTasksChart: () => {
+        const ctx = document.getElementById('tasks-chart');
+        if (!ctx) return;
 
-        searchInput.addEventListener('input', (e) => {
-            const query = e.target.value.toLowerCase().trim();
-            if (!query) {
-                // If on specific views, reset their filters
-                const activeView = document.querySelector('.view-section.active').id;
-                if (activeView === 'tasks') TasksManager.render();
-                if (activeView === 'team') TeamManager.render();
-                return;
-            }
+        const tasks = Store.get('tasks') || [];
+        const todo = tasks.filter(t => t.status === 'todo').length;
+        const inProgress = tasks.filter(t => t.status === 'in-progress').length;
+        const done = tasks.filter(t => t.status === 'done').length;
 
-            // Simple global search across Tasks and Team
-            if (document.getElementById('tasks').classList.contains('active')) {
-                TasksManager.filterTasks(query);
-            } else if (document.getElementById('team').classList.contains('active')) {
-                TeamManager.filterTeam(query);
-            } else if (document.getElementById('chat-section').classList.contains('active')) {
-                ChatManager.filterSidebar(query);
+        if (window.myTasksChart) window.myTasksChart.destroy();
+
+        window.myTasksChart = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: ['To Do', 'In Progress', 'Completed'],
+                datasets: [{
+                    data: [todo, inProgress, done],
+                    backgroundColor: ['#94a3b8', '#3b82f6', '#10b981'],
+                    borderWidth: 0,
+                    hoverOffset: 10
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'bottom', labels: { color: '#94a3b8', font: { weight: '600' } } }
+                },
+                cutout: '70%'
             }
         });
+    },
+
+    renderFinanceTrendChart: () => {
+        const ctx = document.getElementById('finance-trend-chart');
+        if (!ctx) return;
+
+        const records = Store.get('finance') || [];
+        const incomes = records.filter(r => r.type === 'income');
+        const expenses = records.filter(r => r.type === 'expense');
+
+        // Group by month (last 6 months)
+        const labels = [];
+        const incomeData = [];
+        const expenseData = [];
+
+        for (let i = 5; i >= 0; i--) {
+            const d = new Date();
+            d.setMonth(d.getMonth() - i);
+            const monthLabel = d.toLocaleString('default', { month: 'short' });
+            labels.push(monthLabel);
+
+            const m = d.getMonth();
+            const y = d.getFullYear();
+
+            const monthIncomes = incomes.filter(r => {
+                const rd = new Date(r.timestamp);
+                return rd.getMonth() === m && rd.getFullYear() === y;
+            }).reduce((sum, r) => sum + r.amount, 0);
+
+            const monthExpenses = expenses.filter(r => {
+                const rd = new Date(r.timestamp);
+                return rd.getMonth() === m && rd.getFullYear() === y;
+            }).reduce((sum, r) => sum + r.amount, 0);
+
+            incomeData.push(monthIncomes);
+            expenseData.push(monthExpenses);
+        }
+
+        if (window.myFinanceChart) window.myFinanceChart.destroy();
+
+        window.myFinanceChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'Income',
+                        data: incomeData,
+                        borderColor: '#10b981',
+                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                        fill: true,
+                        tension: 0.4
+                    },
+                    {
+                        label: 'Expenses',
+                        data: expenseData,
+                        borderColor: '#ef4444',
+                        backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                        fill: true,
+                        tension: 0.4
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'top', labels: { color: '#94a3b8' } }
+                },
+                scales: {
+                    y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#94a3b8' } },
+                    x: { grid: { display: false }, ticks: { color: '#94a3b8' } }
+                }
+            }
+        });
+    },
+
+    initSearch: () => {
+        // Obsolete: Search handled by Command Palette (Ctrl+K)
     }
 };
 

@@ -11,24 +11,27 @@ const ClientsManager = {
         
         const btnSave = document.getElementById('save-client');
         if (btnSave) btnSave.onclick = () => ClientsManager.saveClient();
+
+        window.addEventListener('storeUpdated', (e) => {
+            if (e.detail.key === 'clients') {
+                ClientsManager.load();
+            }
+        });
     },
 
     load: () => {
-        const stored = localStorage.getItem('clients');
+        const stored = Store.get('clients');
         if (stored) {
-            ClientsManager.clients = JSON.parse(stored);
+            ClientsManager.clients = stored;
         } else {
-            ClientsManager.clients = [
-                { id: 1, name: 'شركة النيل للبرمجيات', contact: 'أحمد محمود', phone: '01012345678', status: 'Active', deals: 3 },
-                { id: 2, name: 'مصنع الأمل للحديد', contact: 'سارة علي', phone: '01122334455', status: 'Lead', deals: 0 }
-            ];
+            ClientsManager.clients = [];
             ClientsManager.saveToStorage();
         }
         ClientsManager.render();
     },
 
     saveToStorage: () => {
-        localStorage.setItem('clients', JSON.stringify(ClientsManager.clients));
+        Store.set('clients', ClientsManager.clients);
     },
 
     render: () => {

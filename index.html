@@ -12,7 +12,8 @@
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="css/style.css">
-    <!-- SheetJS for Professional Excel Export -->
+    <!-- Chart.js for Advanced Analytics -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#2563eb">
@@ -127,11 +128,9 @@
                 <div class="menu-toggle" id="menu-toggle">
                     <i class="fas fa-bars"></i>
                 </div>
-                <div class="search-bar">
-                    <i class="fas fa-search"></i>
-                    <input type="text" placeholder="Search tasks, team, messages..." data-original="Search tasks, team, messages...">
-                </div>
-                <div class="user-profile">
+                <div class="topbar-left"></div>
+                <div style="display:flex; align-items:center; gap:1.5rem;">
+                    <div class="user-profile">
                     <div class="notifications" id="notif-toggle" style="position:relative;">
                         <i class="fas fa-bell"></i>
                         <span class="badge" id="notif-badge" style="display:none;">0</span>
@@ -157,33 +156,39 @@
             <div class="content-wrapper">
                 <!-- Dashboard View -->
                 <section id="dashboard" class="view-section active">
-                    <div id="greeting-box" style="margin-bottom:2rem;">
-                        <h1 id="view-title" data-original="Dashboard Overview">Dashboard Overview</h1>
-                        <p id="view-subtitle"><span data-original="Welcome back">Welcome back</span>, <span
-                                id="dash-user-name">Leader</span>. <span
-                                data-original="Here is your platform summary">Here is your platform summary</span></p>
+                    <div id="greeting-box" style="margin-bottom:2.5rem; display:flex; justify-content:space-between; align-items:flex-end; background:rgba(59,130,246,0.03); padding:2rem; border-radius:var(--radius-xl); border:1px solid rgba(59,130,246,0.1);">
+                        <div>
+                            <h1 id="view-title" data-original="Dashboard Overview">Dashboard Overview</h1>
+                            <p id="view-subtitle" style="font-size:1.1rem; opacity:0.8;">
+                                <span data-original="Welcome back">Welcome back</span>, <span id="dash-user-name" style="font-weight:700; color:var(--primary-color);">Leader</span>. 
+                                <span data-original="Here is your platform summary">Here is your platform summary</span>
+                            </p>
+                        </div>
+                        <div id="ai-briefing-card" class="glass-effect" style="max-width:300px; padding:0.6rem 1rem; border-radius:1.25rem; background:rgba(59, 130, 246, 0.05); border:1px solid rgba(59,130,246,0.1); position:relative; overflow:hidden;">
+                            <div style="display:flex; align-items:center; gap:0.6rem; margin-bottom:0.2rem;">
+                                <div class="ai-pulse-icon" style="width:8px; height:8px; background:#3b82f6; border-radius:50%; box-shadow:0 0 10px #3b82f6;"></div>
+                                <span style="font-size:0.7rem; color:var(--primary-color); font-weight:800; text-transform:uppercase; letter-spacing:0.05em;">AI Intelligence</span>
+                            </div>
+                            <div id="ai-briefing-text" style="font-size:0.85rem; line-height:1.4; color:var(--text-primary); font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Analysing...</div>
+                        </div>
                     </div>
 
-                    <!-- Quick Action Bar -->
+                    <!-- Quick Action Center -->
                     <div class="quick-action-bar">
-                        <button class="quick-action-btn"
-                            onclick="document.querySelector('.nav-item[data-target=tasks]').click(); document.getElementById('btn-add-task').click();">
-                            <i class="fas fa-plus-circle"></i> <span data-original="New Task">New Task</span>
+                        <button class="quick-action-btn" onclick="QuickActions.openTask()">
+                            <i class="fas fa-plus-circle"></i> <span data-original="New Task">مهمة جديدة</span>
                         </button>
-                        <button class="quick-action-btn"
-                            onclick="document.querySelector('.nav-item[data-target=projects]').click(); ProjectsManager.openModal();">
-                            <i class="fas fa-project-diagram"></i> <span data-original="New Project">New Project</span>
+                        <button class="quick-action-btn" onclick="QuickActions.openProject()">
+                            <i class="fas fa-project-diagram"></i> <span data-original="New Project">مشروع جديد</span>
                         </button>
-                        <button class="quick-action-btn admin-only" onclick="FinanceManager.openModal('expense')">
-                            <i class="fas fa-minus-circle"></i> <span data-original="Add Expense">Add Expense</span>
+                        <button class="quick-action-btn admin-only expense" onclick="QuickActions.openExpense()">
+                            <i class="fas fa-minus-circle"></i> <span data-original="Add Expense">تسجيل مصروف</span>
                         </button>
-                        <button class="quick-action-btn"
-                            onclick="document.querySelector('.nav-item[data-target=clients]').click(); ClientsManager.openModal();">
-                            <i class="fas fa-user-plus"></i> <span data-original="New Client">New Client</span>
+                        <button class="quick-action-btn" onclick="QuickActions.openClient()">
+                            <i class="fas fa-user-plus"></i> <span data-original="New Client">عميل جديد</span>
                         </button>
-                        <button class="quick-action-btn"
-                            onclick="document.querySelector('.nav-item[data-target=drive]').click(); document.getElementById('drive-upload-input').click();">
-                            <i class="fas fa-cloud-upload-alt"></i> <span data-original="Upload File">Upload File</span>
+                        <button class="quick-action-btn" onclick="QuickActions.openTicket()">
+                            <i class="fas fa-headset"></i> <span data-original="Support Ticket">دعم فني</span>
                         </button>
                     </div>
 
@@ -211,32 +216,42 @@
                             </div>
                         </div>
                     </div>
-                    <div class="dashboard-grid" style="display:grid;grid-template-columns: 2fr 1fr; gap:1.5rem;">
-                        <div style="display:flex;flex-direction:column;gap:1.5rem;">
-                            <div class="analytics-card glass-effect">
-                                <h3>Task Overview</h3>
-                                <div style="position: relative; height: 300px; width: 100%;">
-                                    <canvas id="tasks-chart"></canvas>
-                                </div>
+                    <!-- Analytics Section -->
+                    <div class="dashboard-grid" style="display:grid;grid-template-columns: 1fr 1fr; gap:1.5rem; margin-bottom: 2rem;">
+                        <div class="analytics-card glass-effect">
+                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+                                <h3>Task Performance</h3>
+                                <i class="fas fa-chart-pie" style="color:var(--primary-color);"></i>
                             </div>
-                            <div class="analytics-card glass-effect admin-only">
-                                <h3>Financial Forecasting (AI)</h3>
-                                <p class="subtitle">توقعات الأرباح للشهر القادم بناءً على أدائك الحالي</p>
-                                <div id="finance-forecast-chart"
-                                    style="height:200px;display:flex;align-items:center;justify-content:center;color:var(--text-secondary);">
-                                    <i class="fas fa-chart-line" style="font-size:3rem;opacity:0.2;"></i>
-                                </div>
+                            <div style="position: relative; height: 250px; width: 100%;">
+                                <canvas id="tasks-chart"></canvas>
                             </div>
                         </div>
-                        <div class="analytics-card glass-effect" style="max-height:600px;overflow-y:auto;">
-                            <div
-                                style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
+                        <div class="analytics-card glass-effect admin-only">
+                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+                                <h3>Financial Pulse</h3>
+                                <i class="fas fa-chart-line" style="color:var(--success);"></i>
+                            </div>
+                            <div style="position: relative; height: 250px; width: 100%;">
+                                <canvas id="finance-trend-chart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="dashboard-grid" style="display:grid;grid-template-columns: 2fr 1fr; gap:1.5rem;">
+                        <!-- AI Forecast & Activity -->
+                        <div class="analytics-card glass-effect admin-only">
+                            <h3>AI Revenue Forecast</h3>
+                            <div id="finance-forecast-chart" style="padding: 1.5rem 0;">
+                                <!-- AI generated -->
+                            </div>
+                        </div>
+                        <div class="analytics-card glass-effect" style="max-height:400px;overflow-y:auto;">
+                            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
                                 <h3 style="margin:0;">Recent Activity</h3>
                                 <i class="fas fa-bolt" style="color:var(--warning);"></i>
                             </div>
-                            <ul class="activity-list" id="activity-list">
-                                <!-- Populated via JS -->
-                            </ul>
+                            <ul class="activity-list" id="activity-list"></ul>
                         </div>
                     </div>
                 </section>
@@ -1676,10 +1691,22 @@
         </div>
     </div>
 
+    <!-- Command Palette Modal -->
+    <div id="command-palette-modal" class="hidden">
+        <div class="command-palette-content glass-effect">
+            <div class="command-palette-header">
+                <i class="fas fa-search"></i>
+                <input type="text" id="command-search-input" placeholder="Type a command or search..." autocomplete="off">
+            </div>
+            <div class="command-results-list" id="command-results-list">
+                <!-- Results populated via JS -->
+            </div>
+        </div>
+    </div>
+
     <!-- Scripts -->
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="js/store.js"></script>
     <script src="js/api.js"></script>
     <script src="js/auth.js"></script>
@@ -1701,6 +1728,8 @@
     <script src="js/inventory.js"></script>
     <script src="js/wiki.js"></script>
     <script src="js/ai-assistant.js"></script>
+    <script src="js/briefing-ai.js"></script>
+    <script src="js/quick-actions.js"></script>
     <script src="js/app.js"></script>
 </body>
 

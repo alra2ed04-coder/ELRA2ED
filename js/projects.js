@@ -11,24 +11,27 @@ const ProjectsManager = {
         
         const btnSave = document.getElementById('save-project');
         if (btnSave) btnSave.onclick = () => ProjectsManager.saveProject();
+
+        window.addEventListener('storeUpdated', (e) => {
+            if (e.detail.key === 'projects') {
+                ProjectsManager.load();
+            }
+        });
     },
 
     load: () => {
-        const stored = localStorage.getItem('projects');
+        const stored = Store.get('projects');
         if (stored) {
-            ProjectsManager.projects = JSON.parse(stored);
+            ProjectsManager.projects = stored;
         } else {
-            ProjectsManager.projects = [
-                { id: 1, name: 'تطوير الموقع الإلكتروني', status: 'In Progress', progress: 65, tasks: 12, team: 3 },
-                { id: 2, name: 'حملة التسويق لرمضان', status: 'Planning', progress: 10, tasks: 5, team: 2 }
-            ];
+            ProjectsManager.projects = [];
             ProjectsManager.saveToStorage();
         }
         ProjectsManager.render();
     },
 
     saveToStorage: () => {
-        localStorage.setItem('projects', JSON.stringify(ProjectsManager.projects));
+        Store.set('projects', ProjectsManager.projects);
     },
 
     render: () => {

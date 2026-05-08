@@ -476,7 +476,9 @@ const Translations = {
     'Great job! You finished more than half the work': 'عاش يا بطل! خلصت أكتر من نص الشغل',
     'Let us get to work and finish what we have': 'يالا بينا نشد الحيل ونخلص اللي ورانا',
     'at': 'في تمام',
-    'No recent activity': 'لا يوجد نشاط مؤخرًا'
+    'No recent activity': 'لا يوجد نشاط مؤخرًا',
+    'Growth forecast for next month': 'توقعات النمو للشهر القادم',
+    'Based on recent activity and current workload': 'استناداً إلى النشاط الأخير وحجم العمل الحالي'
 };
 
 const LangManager = {

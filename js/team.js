@@ -70,6 +70,7 @@ const TeamManager = {
         const team = Store.get('team') || [];
         const me = AuthManager.currentUser;
         const isAdmin = me?.role === 'Super Admin';
+        const isAr = document.documentElement.dir === 'rtl';
 
         grid.innerHTML = '';
 
@@ -95,29 +96,32 @@ const TeamManager = {
             const card = document.createElement('div');
             card.className = 'team-card';
             card.dataset.id = member.id;
+            const headerGradient = member.role === 'Super Admin' ? 'linear-gradient(135deg, #8b5cf6, #d946ef)' : 
+                                  member.role === 'Manager' ? 'linear-gradient(135deg, #3b82f6, #06b6d4)' : 
+                                  'linear-gradient(135deg, #1e293b, #475569)';
+
             card.innerHTML = `
-                <div class="team-card-header"></div>
+                <div class="team-card-header" style="background: ${headerGradient}"></div>
                 <div class="team-card-avatar-wrapper">
                     <img src="${avatarUrl}" alt="${member.name}" loading="lazy">
-                    <span class="status-dot" style="background: ${isOnline ? '#10b981' : '#9ca3af'};" title="${isOnline ? 'Online' : 'Offline'}"></span>
+                    <span class="status-dot ${isOnline ? 'status-pulse' : ''}" style="background: ${isOnline ? '#10b981' : '#9ca3af'};" title="${isOnline ? 'Online' : 'Offline'}"></span>
                 </div>
-                <h3>${member.name} ${isMe ? `<span style="font-size:0.6rem; background:rgba(37,99,235,0.1); color:var(--primary-color); padding:1px 6px; border-radius:4px; vertical-align:middle; margin-right:4px;">أنت</span>` : ''}</h3>
-                <div class="member-title">${member.title || 'عضو الفريق'}</div>
-                <div class="member-email">${member.email}</div>
-                <div class="role-badge">
-                    <i class="fas fa-shield-alt" style="font-size:0.7rem; color:${roleStyle.split(';')[1].replace('color:', '').trim()};"></i>
-                    <span style="color:${roleStyle.split(';')[1].replace('color:', '').trim()}">${typeof LangManager !== 'undefined' ? LangManager.t(member.role) : member.role}</span>
-                </div>
-                <div class="team-actions" style="width:100%; padding:0 1.5rem 1.5rem; display:flex; justify-content:center; gap:0.75rem;">
-                    ${(isAdmin || me?.role === 'Manager') && !isMe ? `
-                    <select onchange="TeamManager.changeRole('${member.id}', this.value)" style="flex:1; padding:0.5rem; border-radius:6px; border:1px solid var(--border-color); background:var(--bg-primary); color:var(--text-primary); font-size:0.8rem; cursor:pointer; outline:none;">
-                        <option value="Member" ${member.role === 'Member' ? 'selected' : ''}>${typeof LangManager !== 'undefined' ? LangManager.t('Member') : 'Member'}</option>
-                        <option value="Manager" ${member.role === 'Manager' ? 'selected' : ''}>${typeof LangManager !== 'undefined' ? LangManager.t('Manager') : 'Manager'}</option>
-                        <option value="Super Admin" ${member.role === 'Super Admin' ? 'selected' : ''}>${typeof LangManager !== 'undefined' ? LangManager.t('Super Admin') : 'Super Admin'}</option>
-                    </select>
-                    <button title="إزالة" onclick="TeamManager.removeMember('${member.id}')" style="width:36px; height:36px; display:flex; align-items:center; justify-content:center; background:rgba(239,68,68,0.08); color:var(--danger); border:none; border-radius:6px; cursor:pointer; transition:all 0.2s;">
-                        <i class="fas fa-trash-alt"></i>
-                    </button>` : ''}
+                <div class="team-card-body">
+                    <h3>${member.name} ${isMe ? `<span style="font-size:0.65rem; background:var(--primary-gradient); color:white; padding:2px 8px; border-radius:20px; vertical-align:middle; margin-inline-start:6px; box-shadow:0 2px 5px rgba(37,99,235,0.2);">أنت</span>` : ''}</h3>
+                    <div class="member-title">${member.title || (isAr ? 'عضو الفريق' : 'Team Member')}</div>
+                    
+                    <div class="role-badge" style="background: ${roleStyle.split(';')[0]};">
+                        <i class="fas fa-shield-alt" style="color:${roleStyle.split(';')[1].split(':')[1]};"></i>
+                        <span style="color:${roleStyle.split(';')[1].split(':')[1]}">${typeof LangManager !== 'undefined' ? LangManager.t(member.role) : member.role}</span>
+                    </div>
+
+                    ${!isMe ? `
+                    <button class="team-card-btn team-card-btn-primary" onclick="TeamManager.openChat('${member.id}')">
+                        <i class="fas fa-paper-plane"></i> ${isAr ? 'مراسلة' : 'Message'}
+                    </button>` : `
+                    <button class="team-card-btn team-card-btn-outline" onclick="document.querySelector('.nav-item[data-target=profile]').click()">
+                        <i class="fas fa-id-card"></i> ${isAr ? 'تعديل البروفايل' : 'Edit Profile'}
+                    </button>`}
                 </div>
             `;
             grid.appendChild(card);

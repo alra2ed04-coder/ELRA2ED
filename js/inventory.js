@@ -11,25 +11,27 @@ const InventoryManager = {
         
         const btnSave = document.getElementById('save-inventory');
         if (btnSave) btnSave.onclick = () => InventoryManager.saveItem();
+
+        window.addEventListener('storeUpdated', (e) => {
+            if (e.detail.key === 'inventory') {
+                InventoryManager.load();
+            }
+        });
     },
 
     load: () => {
-        const stored = localStorage.getItem('inventory');
+        const stored = Store.get('inventory');
         if (stored) {
-            InventoryManager.items = JSON.parse(stored);
+            InventoryManager.items = stored;
         } else {
-            InventoryManager.items = [
-                { id: 1, name: 'لابتوب ديل XPS', category: 'Hardware', stock: 5, status: 'In Stock' },
-                { id: 2, name: 'كراسي مكتبية هيدروليك', category: 'Furniture', stock: 12, status: 'In Stock' },
-                { id: 3, name: 'طابعة ليزر HP', category: 'Hardware', stock: 2, status: 'Low Stock' }
-            ];
+            InventoryManager.items = [];
             InventoryManager.saveToStorage();
         }
         InventoryManager.render();
     },
 
     saveToStorage: () => {
-        localStorage.setItem('inventory', JSON.stringify(InventoryManager.items));
+        Store.set('inventory', InventoryManager.items);
     },
 
     render: () => {

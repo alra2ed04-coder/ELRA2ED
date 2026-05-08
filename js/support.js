@@ -57,8 +57,9 @@ const SupportManager = {
     },
 
     getPrefix: () => {
-        const isAdmin = AuthManager.currentUser?.role === 'Super Admin' || AuthManager.currentUser?.role === 'Manager';
-        return isAdmin ? 'admin-' : '';
+        const adminPanel = document.getElementById('admin-panel');
+        if (adminPanel && adminPanel.classList.contains('active')) return 'admin-';
+        return '';
     },
 
     render: () => {
@@ -246,7 +247,10 @@ const SupportManager = {
         const input = document.getElementById(p + 'support-reply-input');
         if (!input) return;
         const content = input.value.trim();
-        if (!content) return;
+        if (!content) {
+            console.warn('SupportManager: Empty reply content.');
+            return;
+        }
 
         const me = AuthManager.currentUser;
         const tickets = SupportManager.getTickets();
@@ -332,6 +336,14 @@ const SupportManager = {
         SupportManager.renderTicketsList();
         SupportManager.viewTicket(ticket.id);
     },
+
+    // Refresh everything for the active view
+    refresh: () => {
+        SupportManager.renderTicketsList();
+        if (SupportManager.currentTicketId) {
+            SupportManager.viewTicket(SupportManager.currentTicketId);
+        }
+    }
 };
 
 window.SupportManager = SupportManager;
