@@ -56,31 +56,35 @@ const AuthManager = {
     },
 
     handleLogin: () => {
-        const email = document.getElementById('login-email').value.trim();
+        const emailInput = document.getElementById('login-email').value.trim().toLowerCase();
         const pass = document.getElementById('login-password').value;
         const errEl = document.getElementById('login-error');
 
-        if (!email || !pass) {
+        if (!emailInput || !pass) {
             errEl.textContent = 'Please fill in all fields.';
             errEl.classList.remove('hidden');
             return;
         }
 
         const users = Store.get('users') || [];
-        const user = users.find(u => u.email === email && u.password === pass);
+        // Normalize comparison to handle case-sensitivity issues
+        const user = users.find(u => 
+            u.email.trim().toLowerCase() === emailInput && 
+            u.password === pass
+        );
 
         if (user) {
             errEl.classList.add('hidden');
             AuthManager.login(user);
         } else {
-            errEl.textContent = 'Invalid email or password.';
+            errEl.textContent = 'Invalid email or password. Please check your credentials.';
             errEl.classList.remove('hidden');
         }
     },
 
     handleRegister: () => {
         const name = document.getElementById('reg-name').value.trim();
-        const email = document.getElementById('reg-email').value.trim();
+        const email = document.getElementById('reg-email').value.trim().toLowerCase();
         const pass = document.getElementById('reg-password').value;
         const title = document.getElementById('reg-title').value.trim();
         const errEl = document.getElementById('register-error');
@@ -92,8 +96,8 @@ const AuthManager = {
         }
 
         const users = Store.get('users') || [];
-        if (users.find(u => u.email === email)) {
-            errEl.textContent = 'هذا البريد الإلكتروني مسجل بالفعل. يرجى استخدام بريد آخر أو التواصل مع الإدارة لحذف الحساب القديم.';
+        if (users.find(u => u.email.toLowerCase() === email)) {
+            errEl.textContent = 'هذا البريد الإلكتروني مسجل بالفعل. يرجى استخدام بريد آخر أو التواصل مع الإدارة.';
             errEl.classList.remove('hidden');
             return;
         }

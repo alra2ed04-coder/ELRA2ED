@@ -119,6 +119,7 @@ const App = {
 
         App.startDashboardClock();
         App.updateDashboardStats();
+        setTimeout(App.updateDashboardStats, 2000); // Second pass to catch cloud sync
         setTimeout(App.checkUpcomingEvents, 1500);
 
         // Apply role-based UI
@@ -384,7 +385,17 @@ const App = {
         const briefingText = document.getElementById('ai-briefing-text');
         if (briefingCard && briefingText) {
             briefingCard.style.display = 'block';
-            briefingText.innerHTML = (typeof BriefingAI !== 'undefined') ? BriefingAI.generate() : "Loading insights...";
+            try {
+                // Ensure BriefingAI is loaded and functioning
+                if (typeof BriefingAI !== 'undefined') {
+                    briefingText.innerHTML = BriefingAI.generate();
+                } else {
+                    briefingText.innerHTML = document.documentElement.dir === 'rtl' ? "جاري تجهيز الملخص..." : "Preparing insights...";
+                }
+            } catch (err) {
+                console.error("AI Briefing Error:", err);
+                briefingText.innerHTML = document.documentElement.dir === 'rtl' ? "المنصة جاهزة للعمل! 🚀" : "Platform is ready for work! 🚀";
+            }
         }
 
         if (document.getElementById('stat-tasks')) document.getElementById('stat-tasks').textContent = activeTasks;

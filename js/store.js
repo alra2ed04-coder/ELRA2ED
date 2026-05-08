@@ -13,94 +13,62 @@ const Store = {
 
     /**
      * Connect to the real-time sync server.
-     * Called once at startup.
+     * UPDATED: Now uses Firebase Firestore for Cloud Sync
      */
     connectSync: () => {
         try {
-            if (typeof io === 'undefined') {
-                console.warn('Store: Socket.IO not loaded, running in local-only mode.');
+            if (typeof firebase === 'undefined' || !firebase.apps.length) {
+                console.warn('Store: Firebase not initialized or keys missing. Running in local mode.');
                 return;
             }
 
-            Store._socket = io(window.location.origin, {
-                transports: ['websocket', 'polling']
-            });
+            const db = firebase.firestore();
+            console.log('Store: Connecting to Firebase Cloud Sync...');
 
-            Store._socket.on('connect', () => {
-                console.log('Store: Connected to sync server. Socket ID:', Store._socket.id);
-                // Join the shared platform room and request full state
-                Store._socket.emit('joinPlatform');
-            });
+            // ✅ Real-time Firestore Listener for Workspace Data
+            db.collection('workspace').onSnapshot((snapshot) => {
+                if (Store._syncing) return; // Prevent loop
 
-            Store._socket.on('connect_error', (err) => {
-                console.warn('Store: Sync server unavailable. Running in local-only mode.', err.message);
-            });
+                snapshot.docChanges().forEach((change) => {
+                    const key = change.doc.id;
+                    const data = change.doc.data();
+                    
+                    // Skip if the update came from THIS browser recently
+                    if (data.updatedBy === (AuthManager.currentUser?.id || 'anonymous') && 
+                        (Date.now() - data.timestamp < 2000)) return;
 
-            // ✅ Receive the full state snapshot when first connecting
-            Store._socket.on('storeFullSync', (fullState) => {
-                console.log('Store: Received full state from server');
-                // Keys that are PERSONAL per-user - never overwrite with server state
-                const PERSONAL_KEY_PREFIXES = ['pm_', 'savedMessages_', 'currentUser'];
-                Store._syncing = true;
-                try {
-                    Object.entries(fullState).forEach(([key, value]) => {
-                        // Skip personal/private keys - they belong to THIS browser only
-                        const isPersonal = PERSONAL_KEY_PREFIXES.some(prefix => key.startsWith(prefix));
-                        if (!isPersonal && value !== null) {
-                            localStorage.setItem(key, JSON.stringify(value));
+                    console.log(`Store: Cloud Update received for [${key}]`);
+
+                    Store._syncing = true;
+                    try {
+                        if (change.type === 'removed') {
+                            localStorage.removeItem(key);
+                        } else {
+                            localStorage.setItem(key, JSON.stringify(data.value));
                         }
-                    });
-                } finally {
-                    Store._syncing = false;
-                }
-                // Trigger a full UI refresh (only if logged in)
-                if (localStorage.getItem('currentUser')) {
-                    Store._triggerFullRefresh();
-                }
+                    } finally {
+                        Store._syncing = false;
+                    }
+
+                    // Show notification for important changes
+                    if (data.value !== null) {
+                        Store._notifyUserOfChange(key, data.userName || 'زميل');
+                    }
+
+                    // Notify the app that data changed
+                    window.dispatchEvent(new CustomEvent('storeUpdated', { detail: { key, value: data.value } }));
+                    // Refresh relevant UI sections
+                    Store._refreshSection(key);
+                });
+            }, (err) => {
+                console.error('Store: Firestore Sync Error:', err);
             });
 
-            // ✅ Track online users
-            Store._onlineUsers = [];
-            Store._socket.on('onlineUsersList', (userIds) => {
-                Store._onlineUsers = userIds || [];
+            // ✅ Track online users via Firestore 'presence' collection
+            db.collection('presence').onSnapshot((snapshot) => {
+                Store._onlineUsers = snapshot.docs.map(doc => doc.id);
                 window.dispatchEvent(new CustomEvent('onlineUsersUpdated'));
                 if (typeof TeamManager !== 'undefined') TeamManager.render();
-            });
-
-            // ✅ Receive individual updates from other clients
-            Store._socket.on('storeUpdate', ({ key, value, userName, userId }) => {
-                // Never accept server updates for personal keys
-                const PERSONAL_KEY_PREFIXES = ['pm_', 'savedMessages_', 'currentUser'];
-                const isPersonal = PERSONAL_KEY_PREFIXES.some(prefix => key.startsWith(prefix));
-                if (isPersonal) return;
-
-                Store._syncing = true;
-                try {
-                    if (value === null) {
-                        localStorage.removeItem(key);
-                    } else {
-                        localStorage.setItem(key, JSON.stringify(value));
-                    }
-                } finally {
-                    Store._syncing = false;
-                }
-
-                // Show notification for important changes
-                if (value !== null && !Store._syncing) {
-                    Store._notifyUserOfChange(key, userName);
-                }
-
-                // Notify the app that data changed
-                window.dispatchEvent(new CustomEvent('storeUpdated', { detail: { key, value } }));
-                // Refresh relevant UI sections
-                Store._refreshSection(key);
-            });
-
-            // ✅ Handle System Notifications
-            Store._socket.on('systemNotification', (notif) => {
-                if (typeof NotificationManager !== 'undefined') {
-                    NotificationManager.add(notif.content, notif.icon, notif.type);
-                }
             });
 
         } catch (err) {
@@ -208,17 +176,20 @@ const Store = {
             // 1. Always save locally first (fast cache)
             localStorage.setItem(key, JSON.stringify(value));
 
-            // 2. If connected, broadcast ONLY non-personal data to other browsers
+            // 2. Sync to Firestore (Cloud)
             const PERSONAL_KEY_PREFIXES = ['pm_', 'savedMessages_', 'currentUser'];
             const isPersonal = PERSONAL_KEY_PREFIXES.some(prefix => key.startsWith(prefix));
-            if (!isPersonal && Store._socket && Store._socket.connected && !Store._syncing) {
-                const me = typeof AuthManager !== 'undefined' ? AuthManager.currentUser : null;
-                Store._socket.emit('storeSync', { 
-                    key, 
-                    value, 
+            
+            if (!isPersonal && typeof firebase !== 'undefined' && firebase.apps.length && !Store._syncing) {
+                const db = firebase.firestore();
+                const me = AuthManager.currentUser;
+                
+                db.collection('workspace').doc(key).set({
+                    value: value,
+                    updatedBy: me ? me.id : 'anonymous',
                     userName: me ? me.name : 'Unknown',
-                    userId: me ? me.id : null
-                });
+                    timestamp: Date.now()
+                }).catch(err => console.warn('Store: Cloud sync delayed...', err.message));
             }
 
             // 3. Dispatch local event for same-tab reactivity
@@ -230,8 +201,9 @@ const Store = {
 
     remove: (key) => {
         localStorage.removeItem(key);
-        if (Store._socket && Store._socket.connected && !Store._syncing) {
-            Store._socket.emit('storeSync', { key, value: null });
+        if (typeof firebase !== 'undefined' && firebase.apps.length && !Store._syncing) {
+            const db = firebase.firestore();
+            db.collection('workspace').doc(key).delete();
         }
     },
 

@@ -1,409 +1,296 @@
 /**
- * Al-Raed Platform — Interactive Wizard Brain (V6)
- * Multi-step Task Creation - Auto-Saving - Zero API
+ * Al-Raed AI Assistant - Rebuilt From Scratch (V7 - High Stability)
+ * A clean, fast, and robust assistant for administrative automation.
  */
+
 const AIAssistant = {
-    lastTopic: null,
-    learningTarget: null,
-    wizard: {
-        active: false,
-        type: null, // 'task', 'expense', etc.
-        step: 0,
-        data: {}
+    // --- Configuration & State ---
+    config: {
+        isAr: () => (localStorage.getItem('al_raed_lang') || 'ar') === 'ar',
+        user: () => AuthManager.currentUser
+    },
+    state: {
+        wizard: { active: false, type: null, step: 0, data: {} },
+        memory: JSON.parse(localStorage.getItem('ai_permanent_memory')) || {}
     },
 
+    // --- Core Initialization ---
     init: () => {
-        const user = AuthManager.currentUser;
+        const user = AIAssistant.config.user();
         if (!user) return;
-        const widget = document.getElementById('ai-assistant-widget');
-        if (widget) widget.style.display = (user.role === 'Super Admin' || user.role === 'Manager') ? 'block' : 'none';
-        
-        AIAssistant.applyDirection();
-        AIAssistant.loadHistory();
 
+        // Ensure UI elements exist
+        AIAssistant.setupUI();
+        AIAssistant.bindEvents();
+        AIAssistant.loadHistory();
+        
+        console.log("✅ Al-Raed AI Assistant Rebuilt & Initialized.");
+    },
+
+    setupUI: () => {
+        const widget = document.getElementById('ai-assistant-widget');
+        if (widget) {
+            widget.style.display = 'block';
+            AIAssistant.applyThemeAndDirection();
+        }
+    },
+
+    bindEvents: () => {
         const input = document.getElementById('ai-input');
         const sendBtn = document.getElementById('ai-send-btn');
-        const clearBtn = document.getElementById('ai-clear-btn');
         const toggleBtn = document.getElementById('ai-toggle-btn');
         const closeBtn = document.getElementById('ai-close-btn');
+        const clearBtn = document.getElementById('ai-clear-btn');
         const chatWin = document.getElementById('ai-chat-window');
-        
-        // Add voice button if not exists
-        if (!document.getElementById('ai-voice-btn')) {
-            const voiceBtn = document.createElement('button');
-            voiceBtn.id = 'ai-voice-btn';
-            voiceBtn.innerHTML = '<i class="fas fa-microphone"></i>';
-            voiceBtn.style.cssText = 'background:rgba(255,255,255,0.05);border:1px solid var(--border-color);color:var(--primary-color);width:38px;height:38px;border-radius:10px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:var(--transition);flex-shrink:0;';
-            if (sendBtn && sendBtn.parentNode) sendBtn.parentNode.insertBefore(voiceBtn, sendBtn);
-            voiceBtn.onclick = () => AIAssistant.startListening();
-        }
-
-        const handleSend = () => {
-            const val = input.value.trim();
-            if (!val) return;
-            AIAssistant.appendMessage(val, 'user');
-            input.value = '';
-            AIAssistant.processRequest(val);
-        };
 
         if (toggleBtn) toggleBtn.onclick = () => {
-            const isVisible = chatWin.style.display === 'flex';
-            chatWin.style.display = isVisible ? 'none' : 'flex';
-            if (!isVisible && document.getElementById('ai-messages').innerHTML === '') {
-                AIAssistant.showWelcome();
-            }
+            const show = chatWin.style.display !== 'flex';
+            chatWin.style.display = show ? 'flex' : 'none';
+            if (show && document.getElementById('ai-messages').innerHTML === '') AIAssistant.showWelcome();
         };
-        
+
         if (closeBtn) closeBtn.onclick = () => chatWin.style.display = 'none';
-        if (clearBtn) clearBtn.onclick = () => { 
-            document.getElementById('ai-messages').innerHTML = ''; 
+        
+        if (clearBtn) clearBtn.onclick = () => {
+            document.getElementById('ai-messages').innerHTML = '';
             localStorage.removeItem('ai_chat_history');
-            AIAssistant.resetStates();
-            AIAssistant.showWelcome(); 
+            AIAssistant.resetWizard();
+            AIAssistant.showWelcome();
         };
-        if (sendBtn) sendBtn.onclick = handleSend;
+
+        if (sendBtn) sendBtn.onclick = AIAssistant.handleSend;
         if (input) {
-            input.onkeydown = (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); } };
-            // Auto-resize
-            input.oninput = () => {
-                input.style.height = 'auto';
-                input.style.height = Math.min(input.scrollHeight, 120) + 'px';
-            };
+            input.onkeydown = (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); AIAssistant.handleSend(); } };
         }
     },
 
-    loadHistory: () => {
-        const history = JSON.parse(localStorage.getItem('ai_chat_history')) || [];
-        if (history.length > 0) {
-            history.forEach(m => AIAssistant.appendMessage(m.text, m.sender, false));
-        }
+    // --- Interaction Logic ---
+    handleSend: () => {
+        const input = document.getElementById('ai-input');
+        const text = input.value.trim();
+        if (!text) return;
+
+        AIAssistant.appendMessage(text, 'user');
+        input.value = '';
+        AIAssistant.process(text);
     },
 
-    saveHistory: (text, sender) => {
-        const history = JSON.parse(localStorage.getItem('ai_chat_history')) || [];
-        history.push({ text, sender });
-        if (history.length > 20) history.shift();
-        localStorage.setItem('ai_chat_history', JSON.stringify(history));
-    },
-
-    showTyping: (show) => {
-        const typing = document.getElementById('ai-typing');
-        if (typing) typing.style.display = show ? 'block' : 'none';
-        const msgs = document.getElementById('ai-messages');
-        if (msgs) msgs.scrollTop = msgs.scrollHeight;
-    },
-
-    processRequest: (msg) => {
+    process: (text) => {
         AIAssistant.showTyping(true);
         setTimeout(() => {
             AIAssistant.showTyping(false);
-            AIAssistant.think(msg);
-        }, 800 + Math.random() * 1000);
-    },
-
-    startListening: () => {
-        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-        if (!SpeechRecognition) {
-            alert("عذراً، متصفحك لا يدعم التعرف على الصوت.");
-            return;
-        }
-
-        const recognition = new SpeechRecognition();
-        recognition.lang = 'ar-EG';
-        recognition.interimResults = false;
-        recognition.maxAlternatives = 1;
-
-        const voiceBtn = document.getElementById('ai-voice-btn');
-        voiceBtn.style.background = 'var(--danger)';
-        voiceBtn.style.color = 'white';
-        voiceBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-
-        recognition.start();
-
-        recognition.onresult = (event) => {
-            const transcript = event.results[0][0].transcript;
-            document.getElementById('ai-input').value = transcript;
-            AIAssistant.appendMessage(transcript, 'user');
-            AIAssistant.processRequest(transcript);
-        };
-
-        recognition.onspeechend = () => {
-            recognition.stop();
-            voiceBtn.style.background = 'rgba(255,255,255,0.05)';
-            voiceBtn.style.color = 'var(--primary-color)';
-            voiceBtn.innerHTML = '<i class="fas fa-microphone"></i>';
-        };
-
-        recognition.onerror = (event) => {
-            console.error('Speech recognition error', event.error);
-            voiceBtn.style.background = 'rgba(255,255,255,0.05)';
-            voiceBtn.style.color = 'var(--primary-color)';
-            voiceBtn.innerHTML = '<i class="fas fa-microphone"></i>';
-        };
-    },
-
-    resetStates: () => {
-        AIAssistant.learningTarget = null;
-        AIAssistant.wizard = { active: false, type: null, step: 0, data: {} };
-    },
-
-    applyDirection: () => {
-        const isAr = (localStorage.getItem('al_raed_lang') || 'ar') === 'ar';
-        const widget = document.getElementById('ai-assistant-widget');
-        const win = document.getElementById('ai-chat-window');
-        if (widget && win) {
-            widget.style.right = isAr ? 'auto' : '24px';
-            widget.style.left  = isAr ? '24px'  : 'auto';
-            win.style.right = isAr ? 'auto' : '0';
-            win.style.left = isAr ? '0' : 'auto';
-        }
-    },
-
-    showWelcome: () => {
-        const msgs = document.getElementById('ai-messages');
-        const isAr = (localStorage.getItem('al_raed_lang') || 'ar') === 'ar';
-        const welcome = isAr 
-            ? "يا هلا يا مدير! 👋 أنا الرائد، اقدر اساعدك في إضافة مهام أو متابعة حساباتك.. اطلب مني أي حاجة."
-            : "Hello Director! 👋 I am Al-Raed, I can help you manage tasks, track finance, and more. How can I help?";
-        if (msgs && msgs.innerHTML === '') AIAssistant.appendMessage(welcome, 'ai');
-    },
-
-    appendMessage: (text, sender, save = true) => {
-        const container = document.getElementById('ai-messages');
-        if (!container) return;
-        
-        const div = document.createElement('div');
-        const isUser = sender === 'user';
-        
-        div.style.cssText = isUser 
-            ? 'background:linear-gradient(135deg,#2563eb,#7c3aed);color:#fff;padding:0.8rem 1rem;border-radius:18px 18px 4px 18px;margin-bottom:0.8rem;align-self:flex-end;max-width:85%;word-break:break-word;box-shadow:0 4px 12px rgba(37,99,235,0.2);font-size:0.92rem;animation:slideInRight 0.3s ease;'
-            : 'background:var(--bg-secondary);border:1px solid var(--border-color);padding:0.8rem 1rem;border-radius:18px 18px 18px 4px;margin-bottom:0.8rem;align-self:flex-start;max-width:85%;line-height:1.6;color:var(--text-primary);box-shadow:0 4px 12px rgba(0,0,0,0.1);font-size:0.92rem;animation:slideInLeft 0.3s ease;';
-        
-        div.innerHTML = text;
-        container.appendChild(div);
-        container.scrollTop = container.scrollHeight;
-        
-        if (save) AIAssistant.saveHistory(text, sender);
-    },
-
-    showChips: (chips) => {
-        const container = document.getElementById('ai-messages');
-        if (!container) return;
-        
-        const chipContainer = document.createElement('div');
-        chipContainer.className = 'ai-chip-container';
-        chipContainer.style.cssText = 'display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:1rem;padding:0 0.5rem;animation:fadeIn 0.5s ease;';
-        
-        chips.forEach(c => {
-            const button = document.createElement('button');
-            button.className = 'ai-chip';
-            button.innerText = c.text;
-            button.onclick = () => {
-                AIAssistant.appendMessage(c.text, 'user');
-                chipContainer.remove();
-                AIAssistant.processRequest(c.text);
-            };
-            chipContainer.appendChild(button);
-        });
-        
-        container.appendChild(chipContainer);
-        container.scrollTop = container.scrollHeight;
+            AIAssistant.think(text);
+        }, 600 + Math.random() * 600);
     },
 
     think: (msg) => {
         const raw = msg.toLowerCase().trim();
-        const isAr = (localStorage.getItem('al_raed_lang') || 'ar') === 'ar';
+        const isAr = AIAssistant.config.isAr();
         
-        if (AIAssistant.wizard.active) {
+        // 1. Wizard Handling (Multi-step forms)
+        if (AIAssistant.state.wizard.active) {
             AIAssistant.handleWizard(msg);
             return;
         }
 
-        if (AIAssistant.learningTarget) {
-            const learned = JSON.parse(localStorage.getItem('ai_permanent_memory')) || {};
-            learned[AIAssistant.learningTarget] = msg;
-            localStorage.setItem('ai_permanent_memory', JSON.stringify(learned));
-            AIAssistant.appendMessage(isAr ? `فهمت يا مدير! ✅ سجلت الرد ده لـ "${AIAssistant.learningTarget}".` : `Understood! ✅ Saved response for "${AIAssistant.learningTarget}".`, 'ai');
-            AIAssistant.learningTarget = null;
-            return;
-        }
-
-        const learned = JSON.parse(localStorage.getItem('ai_permanent_memory')) || {};
-        if (learned[raw]) { AIAssistant.appendMessage(learned[raw], 'ai'); return; }
-
         let reply = "";
-        let topic = null;
         let chips = [];
 
-        // ── NAVIGATION & VIEWS ──
+        // 2. Navigation Commands
         if (raw.match(/افتح المهام|المهام|tasks|work/)) {
             App.navigateTo('tasks');
-            reply = isAr ? "فتحت لك قسم المهام يا مدير. تحب أضيف لك حاجة جديدة؟" : "Opened tasks section. Want me to add something new?";
-            chips = isAr ? [{text: "ضيف مهمة جديدة"}, {text: "عرض المهام المتأخرة"}] : [{text: "Add new task"}, {text: "Show late tasks"}];
-        }
-        else if (raw.match(/المصاريف|الحسابات|فلوس|finance|money|expense/)) {
+            reply = isAr ? "تحت أمرك يا مدير، فتحت لك قسم المهام. تحب أضيف مهمة جديدة؟" : "Tasks section opened. Want to add a new task?";
+            chips = isAr ? [{text:"إضافة مهمة جديدة"}] : [{text:"Add task"}];
+        } 
+        else if (raw.match(/الحسابات|المصاريف|finance|money/)) {
             App.navigateTo('finance');
-            reply = isAr ? "قسم الحسابات والمصاريف جاهز. تحب تسجل مصروف جديد؟" : "Finance section ready. Record a new expense?";
-            chips = isAr ? [{text: "سجل مصروف جديد"}, {text: "عرض الأرباح"}] : [{text: "Record expense"}, {text: "Show profits"}];
+            reply = isAr ? "قسم الحسابات جاهز. حابب تسجل مصروف جديد؟" : "Finance section ready. Record an expense?";
+            chips = isAr ? [{text:"سجل مصروف"}] : [{text:"Record expense"}];
         }
         else if (raw.match(/العملاء|عميل|clients/)) {
             App.navigateTo('clients');
-            reply = isAr ? "فتحت لك قائمة العملاء. تحب أضيف عميل جديد للفريق؟" : "Opened clients list. Add a new client?";
-            chips = isAr ? [{text: "ضيف عميل جديد"}] : [{text: "Add new client"}];
+            reply = isAr ? "قائمة العملاء مفتوحة قدامك. حابب أضيف عميل جديد؟" : "Clients list opened. Add a new client?";
         }
 
-        // ── WIZARD TRIGGERS ──
-        else if (raw.match(/ضيف مهمة|سجل شغل|مهمة جديدة|add task|new task/)) {
-            AIAssistant.wizard = { active: true, type: 'task', step: 1, data: {} };
-            reply = isAr ? "من عيوني! 🫡 إيه هو <b>عنوان المهمة</b>؟" : "Sure! 🫡 What is the <b>task title</b>?";
+        // 3. Wizard Triggers
+        else if (raw.match(/اضافة مهمة|مهمة جديدة|add task/)) {
+            AIAssistant.state.wizard = { active: true, type: 'task', step: 1, data: {} };
+            reply = isAr ? "تمام، إيه هو <b>عنوان المهمة</b>؟" : "Sure, what is the <b>task title</b>?";
         }
-        else if (raw.match(/سجل مصروف|اضافة مصروف|add expense|new expense/)) {
-            AIAssistant.wizard = { active: true, type: 'expense', step: 1, data: {} };
+        else if (raw.match(/سجل مصروف|اضافة مصروف|add expense/)) {
+            AIAssistant.state.wizard = { active: true, type: 'expense', step: 1, data: {} };
             reply = isAr ? "ماشي يا مدير، <b>المبلغ</b> كام؟" : "Alright, what is the <b>amount</b>?";
         }
-        else if (raw.match(/ضيف عميل|عميل جديد|add client|new client/)) {
-            AIAssistant.wizard = { active: true, type: 'client', step: 1, data: {} };
-            reply = isAr ? "تمام، إيه هو <b>اسم العميل</b>؟" : "Okay, what is the <b>client name</b>?";
+
+        // 4. General Queries
+        else if (raw.match(/اهلا|ازيك|hi|hello/)) {
+            reply = isAr ? "أهلاً بك! أنا الرائد، مساعدك الذكي. جاهز لمساعدتك في أي وقت." : "Hello! I am Al-Raed, your smart assistant. Ready to help anytime.";
+            chips = isAr ? [{text:"ملخص المهام"}, {text:"المصاريف اليومية"}] : [{text:"Task Summary"}, {text:"Daily Expenses"}];
+        }
+        else if (raw.match(/مين انا|اسمي|who am i/)) {
+            const me = AIAssistant.config.user();
+            reply = isAr ? `إنت الباشا <b>${me?.name}</b>، المدير المسؤول هنا. 👑` : `You are <b>${me?.name}</b>, the leader here. 👑`;
         }
 
-        // ── PERSONAL & TEAM ──
-        else if (raw.match(/انا مين|اسمي|who am i/)) {
-            const me = AuthManager.currentUser;
-            reply = isAr ? `إنت الباشا <b>${me?.name}</b>، ووظيفتك <b>${me?.title || 'المدير العام'}</b>. 👑` : `You are <b>${me?.name}</b>, role: <b>${me?.title || 'General Manager'}</b>. 👑`;
-        }
-        else if (raw.match(/الفريق|team/)) {
-            const users = JSON.parse(localStorage.getItem('users')) || [];
-            reply = isAr ? `الفريق فيه <b>${users.length}</b> أعضاء حالياً.` : `The team has <b>${users.length}</b> members.`;
-            chips = isAr ? [{text: "عرض أسماء الفريق"}] : [{text: "Show names"}];
-        }
-        else if (raw.match(/ازيك|اهلا|hi|hello/)) {
-            reply = isAr ? "أنا الرائد، مساعدك الذكي. كله تمام والمنصة شغالة زي الفل! تحب تتابع إيه النهادرية؟" : "I am Al-Raed, your AI. Everything is running smooth! What do you want to track today?";
-            chips = isAr ? [{text: "ملخص الحسابات"}, {text: "حالة المهام"}] : [{text: "Finance Summary"}, {text: "Task Status"}];
-        }
-
+        // 5. Default Response
         if (!reply) {
-            AIAssistant.learningTarget = raw;
-            reply = isAr 
-                ? `الكلمة دي جديدة عليا.. <b>تحب أرد عليك أقول إيه لما تقولي "${raw}"؟</b>`
-                : `This is new to me.. <b>What should I say when you say "${raw}"?</b>`;
+            reply = isAr ? "فهمتك يا مدير، بس الكلمة دي جديدة عليا. اقدر اساعدك في تنظيم المهام والحسابات حالياً." : "Understood, but I'm still learning that. I can help with tasks and finance for now.";
         }
 
         AIAssistant.appendMessage(reply, 'ai');
         if (chips.length > 0) AIAssistant.showChips(chips);
     },
 
+    // --- Wizard Logic ---
     handleWizard: (input) => {
-        const wiz = AIAssistant.wizard;
-        const isAr = (localStorage.getItem('al_raed_lang') || 'ar') === 'ar';
-        
-        // --- TASK WIZARD ---
+        const wiz = AIAssistant.state.wizard;
+        const isAr = AIAssistant.config.isAr();
+
         if (wiz.type === 'task') {
             if (wiz.step === 1) {
                 wiz.data.title = input;
                 wiz.step = 2;
-                AIAssistant.appendMessage(isAr ? "تمام، وايه <b>الوصف</b>؟" : "Great, and the <b>description</b>?", 'ai');
+                AIAssistant.appendMessage(isAr ? "تمام، وايه <b>الوصف</b>؟" : "Great, what is the <b>description</b>?", 'ai');
             } else if (wiz.step === 2) {
                 wiz.data.desc = input;
-                wiz.step = 3;
-                AIAssistant.appendMessage(isAr ? "الأولوية إيه؟" : "Priority?", 'ai');
-                AIAssistant.showChips(isAr ? [{text:"عالية"},{text:"متوسطة"},{text:"ضعيفة"}] : [{text:"High"},{text:"Medium"},{text:"Low"}]);
-            } else if (wiz.step === 3) {
-                const pMap = { 'عالية': 'high', 'متوسطة': 'medium', 'ضعيفة': 'low', 'high': 'high', 'medium': 'medium', 'low': 'low' };
-                wiz.data.priority = pMap[input] || 'medium';
-                AIAssistant.saveTaskLocally(wiz.data);
-                AIAssistant.appendMessage(isAr ? `تم بنجاح! ✅ سجلت المهمة: <b>"${wiz.data.title}"</b>.` : `Done! ✅ Recorded: <b>"${wiz.data.title}"</b>.`, 'ai');
-                AIAssistant.resetStates();
+                AIAssistant.saveTask(wiz.data);
+                AIAssistant.appendMessage(isAr ? "تم حفظ المهمة بنجاح! ✅" : "Task saved successfully! ✅", 'ai');
+                AIAssistant.resetWizard();
             }
-        }
-        // --- EXPENSE WIZARD ---
-        else if (wiz.type === 'expense') {
+        } else if (wiz.type === 'expense') {
             if (wiz.step === 1) {
                 wiz.data.amount = parseFloat(input) || 0;
                 wiz.step = 2;
-                AIAssistant.appendMessage(isAr ? "تمام، <b>الوصف</b> إيه؟" : "Okay, <b>description</b>?", 'ai');
+                AIAssistant.appendMessage(isAr ? "ماشي، <b>الوصف</b> إيه؟" : "Okay, what is the <b>description</b>?", 'ai');
             } else if (wiz.step === 2) {
-                wiz.data.description = input;
-                wiz.step = 3;
-                AIAssistant.appendMessage(isAr ? "التصنيف إيه؟" : "Category?", 'ai');
-                AIAssistant.showChips(isAr ? [{text:"رواتب"},{text:"إيجار"},{text:"مشتريات"},{text:"أخرى"}] : [{text:"Salaries"},{text:"Rent"},{text:"Purchases"},{text:"Other"}]);
-            } else if (wiz.step === 3) {
-                wiz.data.category = input;
-                AIAssistant.saveExpenseLocally(wiz.data);
-                AIAssistant.appendMessage(isAr ? `تم تسجيل المصروف بقيمة <b>${wiz.data.amount}</b> بنجاح! 💸` : `Expense of <b>${wiz.data.amount}</b> recorded successfully! 💸`, 'ai');
-                AIAssistant.resetStates();
-            }
-        }
-        // --- CLIENT WIZARD ---
-        else if (wiz.type === 'client') {
-            if (wiz.step === 1) {
-                wiz.data.name = input;
-                wiz.step = 2;
-                AIAssistant.appendMessage(isAr ? "الشركة إيه؟" : "Which company?", 'ai');
-            } else if (wiz.step === 2) {
-                wiz.data.company = input;
-                wiz.step = 3;
-                AIAssistant.appendMessage(isAr ? "الإيميل إيه؟" : "What is the email?", 'ai');
-            } else if (wiz.step === 3) {
-                wiz.data.email = input;
-                AIAssistant.saveClientLocally(wiz.data);
-                AIAssistant.appendMessage(isAr ? `تم إضافة العميل <b>${wiz.data.name}</b> بنجاح! 🤝` : `Client <b>${wiz.data.name}</b> added successfully! 🤝`, 'ai');
-                AIAssistant.resetStates();
+                wiz.data.desc = input;
+                AIAssistant.saveExpense(wiz.data);
+                AIAssistant.appendMessage(isAr ? "سجلت لك المصروف، ميزانيتك في أمان! 💸" : "Expense recorded, budget is safe! 💸", 'ai');
+                AIAssistant.resetWizard();
             }
         }
     },
 
-    saveTaskLocally: (data) => {
+    // --- Data Persistence ---
+    saveTask: (data) => {
         const tasks = JSON.parse(localStorage.getItem('tasks')) || [];
-        const newTask = {
+        tasks.unshift({
             id: 'task_' + Date.now(),
             title: data.title,
             description: data.desc,
-            priority: data.priority,
             status: 'todo',
+            priority: 'medium',
             createdAt: new Date().toISOString()
-        };
-        tasks.push(newTask);
+        });
         localStorage.setItem('tasks', JSON.stringify(tasks));
         if (typeof TasksManager !== 'undefined') TasksManager.render();
         if (typeof App !== 'undefined') App.updateDashboardStats();
     },
 
-    saveExpenseLocally: (data) => {
+    saveExpense: (data) => {
         const finance = JSON.parse(localStorage.getItem('finance')) || [];
-        const newExpense = {
+        finance.unshift({
             id: 'fin_' + Date.now(),
             type: 'expense',
             amount: data.amount,
-            description: data.description,
-            category: data.category,
+            description: data.desc,
             date: new Date().toISOString().split('T')[0]
-        };
-        finance.push(newExpense);
+        });
         localStorage.setItem('finance', JSON.stringify(finance));
         if (typeof FinanceManager !== 'undefined') FinanceManager.renderExpenses();
         if (typeof App !== 'undefined') App.updateDashboardStats();
     },
 
-    saveClientLocally: (data) => {
-        const clients = JSON.parse(localStorage.getItem('clients')) || [];
-        const newClient = {
-            id: 'client_' + Date.now(),
-            name: data.name,
-            company: data.company,
-            email: data.email,
-            status: 'active',
-            createdAt: new Date().toISOString()
-        };
-        clients.push(newClient);
-        localStorage.setItem('clients', JSON.stringify(clients));
-        if (typeof ClientsManager !== 'undefined') ClientsManager.render();
+    // --- UI Helpers ---
+    appendMessage: (text, sender, save = true) => {
+        const container = document.getElementById('ai-messages');
+        if (!container) return;
+
+        const div = document.createElement('div');
+        const isUser = sender === 'user';
+        
+        div.className = 'ai-msg-bubble ' + (isUser ? 'user' : 'ai');
+        div.style.cssText = isUser 
+            ? 'background:linear-gradient(135deg, var(--primary-color), var(--primary-dark)); color:white; padding:0.8rem 1.1rem; border-radius:1.2rem 1.2rem 0.2rem 1.2rem; margin-bottom:1rem; align-self:flex-end; max-width:85%; box-shadow:var(--shadow-sm); animation:slideInRight 0.3s ease; font-size:0.95rem;'
+            : 'background:var(--bg-secondary); border:1px solid var(--border-color); color:var(--text-primary); padding:0.8rem 1.1rem; border-radius:1.2rem 1.2rem 1.2rem 0.2rem; margin-bottom:1rem; align-self:flex-start; max-width:85%; box-shadow:var(--shadow-sm); animation:slideInLeft 0.3s ease; font-size:0.95rem; line-height:1.5;';
+        
+        div.innerHTML = text;
+        container.appendChild(div);
+        container.scrollTop = container.scrollHeight;
+
+        if (save) {
+            const history = JSON.parse(localStorage.getItem('ai_chat_history')) || [];
+            history.push({ text, sender });
+            localStorage.setItem('ai_chat_history', JSON.stringify(history.slice(-20)));
+        }
+    },
+
+    showChips: (chips) => {
+        const container = document.getElementById('ai-messages');
+        const chipContainer = document.createElement('div');
+        chipContainer.style.cssText = 'display:flex; gap:0.5rem; flex-wrap:wrap; margin-bottom:1rem;';
+        
+        chips.forEach(c => {
+            const btn = document.createElement('button');
+            btn.style.cssText = 'background:var(--bg-secondary); border:1px solid var(--primary-color); color:var(--primary-color); padding:0.4rem 0.8rem; border-radius:2rem; font-size:0.85rem; cursor:pointer; transition:0.2s;';
+            btn.innerText = c.text;
+            btn.onclick = () => {
+                AIAssistant.appendMessage(c.text, 'user');
+                chipContainer.remove();
+                AIAssistant.process(c.text);
+            };
+            btn.onmouseover = () => btn.style.background = 'var(--primary-color)1a';
+            btn.onmouseout = () => btn.style.background = 'var(--bg-secondary)';
+            chipContainer.appendChild(btn);
+        });
+        container.appendChild(chipContainer);
+        container.scrollTop = container.scrollHeight;
+    },
+
+    showWelcome: () => {
+        const isAr = AIAssistant.config.isAr();
+        const msg = isAr ? "أهلاً بك يا مدير! 👋 أنا مساعدك الذكي، كيف يمكنني مساعدتك اليوم؟" : "Welcome back, Leader! 👋 How can I help you today?";
+        AIAssistant.appendMessage(msg, 'ai', false);
+    },
+
+    showTyping: (show) => {
+        const typing = document.getElementById('ai-typing');
+        if (typing) typing.style.display = show ? 'block' : 'none';
+    },
+
+    loadHistory: () => {
+        const history = JSON.parse(localStorage.getItem('ai_chat_history')) || [];
+        history.forEach(m => AIAssistant.appendMessage(m.text, m.sender, false));
+    },
+
+    resetWizard: () => {
+        AIAssistant.state.wizard = { active: false, type: null, step: 0, data: {} };
+    },
+
+    applyThemeAndDirection: () => {
+        const isAr = AIAssistant.config.isAr();
+        const widget = document.getElementById('ai-assistant-widget');
+        const chatWin = document.getElementById('ai-chat-window');
+        if (widget) {
+            widget.style.left = isAr ? '20px' : 'auto';
+            widget.style.right = isAr ? 'auto' : '20px';
+        }
+        if (chatWin) {
+            chatWin.style.left = isAr ? '0' : 'auto';
+            chatWin.style.right = isAr ? 'auto' : '0';
+        }
     }
 };
 
-window.addEventListener('DOMContentLoaded', () => {
-    let retries = 0;
-    const starter = setInterval(() => {
-        if (typeof AuthManager !== 'undefined' && AuthManager.currentUser) { AIAssistant.init(); clearInterval(starter); }
-        if (retries++ > 10) clearInterval(starter);
+// Global Exposure
+window.AIAssistant = AIAssistant;
+
+// Initialization Boot
+document.addEventListener('DOMContentLoaded', () => {
+    let checkInterval = setInterval(() => {
+        if (typeof AuthManager !== 'undefined' && AuthManager.currentUser) {
+            AIAssistant.init();
+            clearInterval(checkInterval);
+        }
     }, 1000);
 });
