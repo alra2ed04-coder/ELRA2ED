@@ -6,12 +6,13 @@
  */
 
 const firebaseConfig = {
-    apiKey: "YOUR_API_KEY",
-    authDomain: "your-app-id.firebaseapp.com",
-    projectId: "your-app-id",
-    storageBucket: "your-app-id.appspot.com",
-    messagingSenderId: "YOUR_SENDER_ID",
-    appId: "YOUR_APP_ID"
+    apiKey: "AIzaSyAOtDkZA0gC0Ct7AaAoZIS-volT9XKnnrc",
+    authDomain: "alraed-e4d2f.firebaseapp.com",
+    projectId: "alraed-e4d2f",
+    storageBucket: "alraed-e4d2f.firebasestorage.app",
+    messagingSenderId: "1020246695771",
+    appId: "1:1020246695771:web:ad4e35b67130ded1ba047e",
+    measurementId: "G-L6QZKV6M0E"
 };
 
 // Initialize Firebase

@@ -177,14 +177,28 @@ const Store = {
             localStorage.setItem(key, JSON.stringify(value));
 
             // 2. Sync to Firestore (Cloud)
-            const PERSONAL_KEY_PREFIXES = ['pm_', 'savedMessages_', 'currentUser'];
+            const PERSONAL_KEY_PREFIXES = ['pm_', 'savedMessages_', 'currentUser', 'wsInitialized'];
             const isPersonal = PERSONAL_KEY_PREFIXES.some(prefix => key.startsWith(prefix));
             
             if (!isPersonal && typeof firebase !== 'undefined' && firebase.apps.length && !Store._syncing) {
                 const db = firebase.firestore();
                 const me = AuthManager.currentUser;
                 
-                db.collection('workspace').doc(key).set({
+                // Map local keys to specific Firestore collections as seen in user's DB
+                const collectionMap = {
+                    'tasks': 'tasks',
+                    'team': 'team',
+                    'finance': 'finance',
+                    'auditLogs': 'audit_logs',
+                    'messages': 'messages',
+                    'events': 'events',
+                    'presence': 'presence',
+                    'users': 'users'
+                };
+
+                const collectionName = collectionMap[key] || 'workspace';
+
+                db.collection(collectionName).doc(key).set({
                     value: value,
                     updatedBy: me ? me.id : 'anonymous',
                     userName: me ? me.name : 'Unknown',
