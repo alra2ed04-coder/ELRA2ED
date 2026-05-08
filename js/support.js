@@ -332,8 +332,6 @@ const SupportManager = {
         SupportManager.renderTicketsList();
         SupportManager.viewTicket(ticket.id);
     },
-
-    }
 };
 
 window.SupportManager = SupportManager;

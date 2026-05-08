@@ -168,11 +168,6 @@ const AuthManager = {
         // Init app modules after login
         if (typeof App !== 'undefined') App.init();
 
-        // Announce online presence to all other clients
-        if (Store._socket && Store._socket.connected) {
-            Store._socket.emit('userPresence', { userId: freshUser.id, name: freshUser.name });
-        }
-
         // Notify welcome
         NotificationManager.add(`مرحباً بك، ${freshUser.name}! 👋`, 'fa-hand-wave', 'system');
     },

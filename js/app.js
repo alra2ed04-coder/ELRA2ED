@@ -75,7 +75,7 @@ const App = {
             if(tUpdated) Store.set('team', team);
         } catch(e) {}
 
-        // ✅ Connect to real-time sync server FIRST
+        // Connect to real-time sync server AFTER user data is ready
         Store.connectSync();
 
         ThemeManager.init();
@@ -192,9 +192,9 @@ const App = {
 
                 // ── AI Widget: hide in chat to avoid button conflicts ──
                 const aiWidget = document.getElementById('ai-assistant-widget');
-                if (aiWidget && aiWidget.style.display !== 'none') {
+                const toggleBtn = document.getElementById('ai-toggle-btn');
+                if (aiWidget) {
                     const hiddenSections = ['chat-section'];
-                    const toggleBtn = document.getElementById('ai-toggle-btn');
                     if (hiddenSections.includes(target)) {
                         // Slide out then hide
                         if (toggleBtn) {

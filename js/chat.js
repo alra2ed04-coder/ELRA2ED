@@ -31,29 +31,10 @@ const ChatManager = {
 
         window.addEventListener('storeUpdated', (e) => {
             const key = e.detail?.key;
-            if (key === 'chat_rooms' || key === 'chat_invitations' || key?.startsWith('room_msgs_') || key === 'team') {
+            if (key === 'chat_rooms' || key === 'chat_invitations' || key?.startsWith('room_msgs_') || key === 'messages' || key === 'team') {
                 ChatManager.render();
             }
         });
-
-        if (Store._socket) {
-            Store._socket.on('privateMessage', (msg) => {
-                const me = AuthManager.currentUser;
-                if (!me) return;
-                const key = ChatManager._getPrivateKey(me, msg.senderId);
-                const msgs = JSON.parse(localStorage.getItem(key) || '[]');
-                msgs.push(msg);
-                localStorage.setItem(key, JSON.stringify(msgs));
-
-                if (ChatManager.currentType === 'private' && ChatManager.currentReceiverId === msg.senderId) {
-                    ChatManager.renderMessages();
-                } else {
-                    NotificationManager.add(`💬 رسالة جديدة من ${msg.senderName}`, 'fa-comment', 'chat');
-                }
-            });
-        }
-        if (typeof AuditManager !== 'undefined') AuditManager.init();
-        if (typeof FinanceManager !== 'undefined') FinanceManager.init();
 
         // Global Avatar Error Handler
         document.addEventListener('error', (e) => {
@@ -218,7 +199,7 @@ const ChatManager = {
         team.filter(m => m.id !== me?.id).forEach(member => {
             const cleanName = member.name.replace(/\s*\(.*?\)\s*/g, '');
             const avatar = member.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(cleanName)}&background=2563eb&color=fff&bold=true`;
-            const isOnline = Store._onlineUsers.includes(member.id);
+            const isOnline = (Store._onlineUsers || []).includes(member.id);
             const key = ChatManager._getPrivateKey(me, member.id);
             const lastMsgs = JSON.parse(localStorage.getItem(key) || '[]');
             const lastMsg = lastMsgs.length > 0 ? lastMsgs[lastMsgs.length - 1] : null;
@@ -348,7 +329,7 @@ const ChatManager = {
             if (isSelf) {
                 statusEl.innerHTML = `<i class="fas fa-bookmark" style="font-size:0.65rem;"></i> ${LangManager.t('My Profile')}`;
             } else {
-                const isOnline = Store._onlineUsers.includes(id);
+                const isOnline = (Store._onlineUsers || []).includes(id);
                 statusEl.innerHTML = isOnline
                     ? `<span style="width:7px;height:7px;border-radius:50%;background:var(--success);display:inline-block;"></span> ${LangManager.t('Active')}`
                     : `<span style="width:7px;height:7px;border-radius:50%;background:var(--text-secondary);display:inline-block;"></span> ${LangManager.t('Planning')}`;
@@ -475,12 +456,18 @@ const ChatManager = {
         const me = AuthManager.currentUser;
         if (!me || !ChatManager.currentReceiverId) return [];
 
+        const allMessages = Store.get('messages') || [];
+
         if (ChatManager.currentType === 'private') {
-            if (ChatManager._isSelfChat) return JSON.parse(localStorage.getItem(ChatManager._getSelfKey(me)) || '[]');
-            const key = ChatManager._getPrivateKey(me, ChatManager.currentReceiverId);
-            return JSON.parse(localStorage.getItem(key) || '[]');
+            if (ChatManager._isSelfChat) {
+                return allMessages.filter(m => m.senderId === me.id && m.receiverId === me.id);
+            }
+            return allMessages.filter(m => 
+                (m.senderId === me.id && m.receiverId === ChatManager.currentReceiverId) ||
+                (m.senderId === ChatManager.currentReceiverId && m.receiverId === me.id)
+            );
         } else {
-            return Store.get(ChatManager._getRoomKey(ChatManager.currentReceiverId)) || [];
+            return allMessages.filter(m => m.receiverId === ChatManager.currentReceiverId);
         }
     },
 
@@ -615,12 +602,16 @@ const ChatManager = {
                 timestamp: new Date().toISOString()
             };
 
-            const msgs = ChatManager.getMessages();
-            msgs.push(msg);
-            ChatManager.saveMessages(msgs);
+            // Save to Cloud Store (Shared)
+            const allMessages = Store.get('messages') || [];
+            allMessages.push(msg);
+            Store.set('messages', allMessages);
 
-            if (ChatManager.currentType === 'private' && !ChatManager._isSelfChat && Store._socket?.connected) {
-                Store._socket.emit('privateMessage', { ...msg, toId: ChatManager.currentReceiverId });
+            // Also update private chat state for real-time listener
+            if (ChatManager.currentType === 'private') {
+                const privateChats = Store.get('private_chats') || [];
+                privateChats.push({ ...msg, toId: ChatManager.currentReceiverId });
+                Store.set('private_chats', privateChats);
             }
 
             input.value = '';
@@ -689,4 +680,4 @@ _chatStyles.textContent = `
 document.head.appendChild(_chatStyles);
 
 window.ChatManager = ChatManager;
-ChatManager.init();
+// Note: ChatManager.init() is called by App.init() after authentication.
