@@ -17,9 +17,43 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#2563eb">
+    <!-- Anti-Flicker & Pre-render State Sync -->
+    <script>
+        (function() {
+            // 1. Sync Theme & Language instantly to prevent layout shift animations
+            const lang = localStorage.getItem('al_raed_lang') || 'en';
+            const theme = localStorage.getItem('al_raed_theme') || 'dark';
+            document.documentElement.setAttribute('dir', lang === 'ar' ? 'rtl' : 'ltr');
+            document.documentElement.setAttribute('lang', lang);
+            document.documentElement.setAttribute('data-theme', theme);
+
+            // 2. Prevent Login Screen Flash
+            const hasUser = localStorage.getItem('currentUser');
+            const style = document.createElement('style');
+            
+            // Core anti-flicker styles (only block transitions during initial load)
+            let css = '.preload * { transition: none !important; }';
+
+            if (hasUser) {
+                css += '#auth-wrapper { display: none !important; } #app-wrapper { display: flex !important; }';
+            } else {
+                css += '#auth-wrapper { display: flex !important; } #app-wrapper { display: none !important; }';
+            }
+            
+            style.innerHTML = css;
+            document.head.appendChild(style);
+            
+            // Remove preload class after page is fully loaded
+            window.addEventListener('load', function() {
+                setTimeout(function() {
+                    document.body.classList.remove('preload');
+                }, 100);
+            });
+        })();
+    </script>
 </head>
 
-<body>
+<body class="preload">
     <!-- Authentication Screen -->
     <div id="auth-wrapper" class="auth-wrapper glass-effect">
         <div class="auth-container">
@@ -78,6 +112,7 @@
     </div>
 
     <div class="app-container hidden" id="app-wrapper">
+        <div class="sidebar-overlay" id="sidebar-overlay"></div>
         <!-- Sidebar -->
         <aside class="sidebar">
             <div class="logo">
@@ -125,12 +160,11 @@
         <!-- Main Content -->
         <main class="main-content">
             <header class="topbar">
-                <div class="menu-toggle" id="menu-toggle">
-                    <i class="fas fa-bars"></i>
+                <div class="topbar-left" style="display:flex; align-items:center; gap:0.6rem;">
+                    <i class="fas fa-crown" style="color:var(--primary-color); font-size:1.4rem;"></i>
+                    <span style="font-weight:700; font-size:1.1rem; color:var(--text-primary);" data-original="Al-Raed">Al-Raed</span>
                 </div>
-                <div class="topbar-left"></div>
-                <div style="display:flex; align-items:center; gap:1.5rem;">
-                    <div class="user-profile">
+                <div style="display:flex; align-items:center; gap:1.25rem;">
                     <div class="notifications" id="notif-toggle" style="position:relative;">
                         <i class="fas fa-bell"></i>
                         <span class="badge" id="notif-badge" style="display:none;">0</span>
@@ -144,11 +178,14 @@
                     </div>
                     <div style="display:flex;align-items:center;gap:0.75rem;cursor:pointer;" id="topbar-user"
                         onclick="document.querySelector('.nav-item[data-target=profile]').click()">
-                        <img src="" alt="User" class="avatar" id="current-user-avatar">
+                        <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=" alt="User" class="avatar" id="current-user-avatar">
                         <div style="line-height:1.2;">
                             <div class="username" id="current-user-name">Admin</div>
                             <div style="font-size:0.7rem;color:var(--text-secondary);" id="current-user-role">Role</div>
                         </div>
+                    </div>
+                    <div class="menu-toggle" id="menu-toggle">
+                        <i class="fas fa-bars"></i>
                     </div>
                 </div>
             </header>
@@ -156,20 +193,20 @@
             <div class="content-wrapper">
                 <!-- Dashboard View -->
                 <section id="dashboard" class="view-section active">
-                    <div id="greeting-box" style="margin-bottom:2.5rem; display:flex; justify-content:space-between; align-items:flex-end; background:rgba(59,130,246,0.03); padding:2rem; border-radius:var(--radius-xl); border:1px solid rgba(59,130,246,0.1);">
-                        <div>
+                    <div id="greeting-box" class="greeting-box">
+                        <div class="greeting-content">
                             <h1 id="view-title" data-original="Dashboard Overview">Dashboard Overview</h1>
-                            <p id="view-subtitle" style="font-size:1.1rem; opacity:0.8;">
+                            <p id="view-subtitle">
                                 <span data-original="Welcome back">Welcome back</span>, <span id="dash-user-name" style="font-weight:700; color:var(--primary-color);">Leader</span>. 
                                 <span data-original="Here is your platform summary">Here is your platform summary</span>
                             </p>
                         </div>
-                        <div id="ai-briefing-card" class="glass-effect" style="max-width:300px; padding:0.6rem 1rem; border-radius:1.25rem; background:rgba(59, 130, 246, 0.05); border:1px solid rgba(59,130,246,0.1); position:relative; overflow:hidden;">
-                            <div style="display:flex; align-items:center; gap:0.6rem; margin-bottom:0.2rem;">
-                                <div class="ai-pulse-icon" style="width:8px; height:8px; background:#3b82f6; border-radius:50%; box-shadow:0 0 10px #3b82f6;"></div>
-                                <span style="font-size:0.7rem; color:var(--primary-color); font-weight:800; text-transform:uppercase; letter-spacing:0.05em;">AI Intelligence</span>
+                        <div id="ai-briefing-card" class="glass-effect ai-briefing-pill">
+                            <div class="ai-badge">
+                                <div class="ai-pulse-icon"></div>
+                                <span data-original="AI Intelligence">AI Intelligence</span>
                             </div>
-                            <div id="ai-briefing-text" style="font-size:0.85rem; line-height:1.4; color:var(--text-primary); font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">Analysing...</div>
+                            <div id="ai-briefing-text">Analysing...</div>
                         </div>
                     </div>
 
@@ -217,7 +254,7 @@
                         </div>
                     </div>
                     <!-- Analytics Section -->
-                    <div class="dashboard-grid" style="display:grid;grid-template-columns: 1fr 1fr; gap:1.5rem; margin-bottom: 2rem;">
+                    <div class="dashboard-grid">
                         <div class="analytics-card glass-effect">
                             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
                                 <h3>Task Performance</h3>
@@ -238,7 +275,7 @@
                         </div>
                     </div>
 
-                    <div class="dashboard-grid" style="display:grid;grid-template-columns: 2fr 1fr; gap:1.5rem;">
+                    <div class="dashboard-grid">
                         <!-- AI Forecast & Activity -->
                         <div class="analytics-card glass-effect admin-only">
                             <h3>AI Revenue Forecast</h3>
@@ -246,7 +283,7 @@
                                 <!-- AI generated -->
                             </div>
                         </div>
-                        <div class="analytics-card glass-effect" style="max-height:400px;overflow-y:auto;">
+                        <div class="analytics-card glass-effect activity-card">
                             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
                                 <h3 style="margin:0;">Recent Activity</h3>
                                 <i class="fas fa-bolt" style="color:var(--warning);"></i>
@@ -496,7 +533,7 @@
                             data-ar="تخصيص اللغة والمظهر وتفضيلات مكان العمل">Customize language, theme, and workspace
                             preferences</p>
                     </div>
-                    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:1.5rem;">
+                    <div class="dashboard-grid">
                         <!-- Preferences Card -->
                         <div class="glass-effect" style="padding:1.5rem;border-radius:var(--radius-lg);">
                             <h3 style="margin-bottom:1.25rem;"><i class="fas fa-palette"></i> Appearance</h3>
@@ -562,7 +599,7 @@
 
                     <!-- Expenses View -->
                     <div id="finance-expenses" class="finance-tab active">
-                        <div class="stats-grid" style="margin-bottom:1.5rem;">
+                        <div class="stats-grid">
                             <div class="stat-card glass-effect" style="border-left:4px solid var(--danger);">
                                 <div class="stat-info">
                                     <h3 id="finance-total-expenses">$0</h3>
@@ -598,7 +635,7 @@
 
                     <!-- Debts View -->
                     <div id="finance-debts" class="finance-tab hidden" style="display:none;">
-                        <div class="stats-grid" style="margin-bottom:1.5rem;">
+                        <div class="stats-grid">
                             <div class="stat-card glass-effect" style="border-left:4px solid #f59e0b;">
                                 <div class="stat-info">
                                     <h3 id="finance-total-debts">$0</h3>
@@ -646,7 +683,7 @@
                         <p class="subtitle" data-original="Manage your personal information and account settings">Manage
                             your personal information and account settings</p>
                     </div>
-                    <div style="display:grid;grid-template-columns:1fr 2fr;gap:2rem;align-items:start;">
+                    <div class="dashboard-grid">
                         <!-- Profile Card -->
                         <div class="glass-effect"
                             style="padding:2rem;border-radius:var(--radius-lg);text-align:center;">
@@ -791,7 +828,7 @@
                     </div>
 
                     <!-- Audit Logs (Moved into Admin Panel) -->
-                    <div class="glass-effect" style="padding:1.5rem;border-radius:var(--radius-lg);overflow-x:auto;">
+                    <div class="glass-effect table-responsive">
                         <div
                             style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem;">
                             <h3><i class="fas fa-shield-alt"></i> سجل المراجعة (Audit Logs)</h3>
@@ -1634,13 +1671,13 @@
                 right: 8px !important;
                 width: calc(100vw - 16px) !important;
                 bottom: 80px !important;
-                height: calc(100vh - 110px) !important;
+                height: calc(100vh - 100px) !important;
             }
 
             #ai-assistant-widget {
-                left: 12px !important;
+                left: 20px !important;
                 right: auto !important;
-                bottom: 16px !important;
+                bottom: 20px !important;
             }
         }
     </style>

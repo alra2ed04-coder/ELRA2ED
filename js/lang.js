@@ -657,6 +657,5 @@ const LangManager = {
 
 window.LangManager = LangManager;
 
-document.addEventListener('DOMContentLoaded', () => {
-    LangManager.init();
-});
+// Run synchronously since script is at the end of the body
+LangManager.init();

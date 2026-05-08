@@ -150,6 +150,20 @@ const App = {
         }
     },
 
+    navigateTo: (target) => {
+        const navLink = document.querySelector(`.nav-item[data-target="${target}"]`);
+        if (navLink) {
+            navLink.click();
+        } else {
+            const sections = document.querySelectorAll('.view-section');
+            const navItems = document.querySelectorAll('.nav-item');
+            navItems.forEach(n => n.classList.remove('active'));
+            sections.forEach(s => s.classList.remove('active'));
+            const targetSection = document.getElementById(target);
+            if (targetSection) targetSection.classList.add('active');
+        }
+    },
+
     initNavigation: () => {
         const navItems  = document.querySelectorAll('.nav-item');
         const sections  = document.querySelectorAll('.view-section');
@@ -241,18 +255,69 @@ const App = {
     },
 
     initMobileMenu: () => {
-        const toggle  = document.getElementById('menu-toggle');
+        const toggle = document.getElementById('menu-toggle');
+        const moreBtn = document.getElementById('mobile-more-btn');
         const sidebar = document.querySelector('.sidebar');
-        if (!toggle || !sidebar) return;
+        const overlay = document.getElementById('sidebar-overlay');
+        const bottomNavItems = document.querySelectorAll('.mobile-nav-item');
+        
+        if (!sidebar) return;
 
-        toggle.addEventListener('click', () => sidebar.classList.toggle('open'));
+        const openSidebar = () => {
+            sidebar.classList.add('open');
+            if (overlay) overlay.style.display = 'block';
+        };
+
+        const closeSidebar = () => {
+            sidebar.classList.remove('open');
+            if (overlay) overlay.style.display = 'none';
+        };
+
+        toggle?.addEventListener('click', () => {
+            const isOpen = sidebar.classList.toggle('open');
+            if (overlay) overlay.style.display = isOpen ? 'block' : 'none';
+        });
+
+        moreBtn?.addEventListener('click', (e) => {
+            e.preventDefault();
+            openSidebar();
+        });
+
+        if (overlay) overlay.addEventListener('click', closeSidebar);
 
         document.addEventListener('click', (e) => {
-            if (window.innerWidth <= 768 && sidebar.classList.contains('open')) {
-                if (!sidebar.contains(e.target) && !toggle.contains(e.target)) {
-                    sidebar.classList.remove('open');
+            if (window.innerWidth <= 1024 && sidebar.classList.contains('open')) {
+                if (!sidebar.contains(e.target) && !toggle?.contains(e.target) && !moreBtn?.contains(e.target)) {
+                    closeSidebar();
                 }
             }
+        });
+
+        // Bottom nav switching logic
+        bottomNavItems.forEach(item => {
+            item.addEventListener('click', (e) => {
+                const target = item.getAttribute('data-target');
+                if (target) {
+                    bottomNavItems.forEach(i => i.classList.remove('active'));
+                    item.classList.add('active');
+                    // Sync with sidebar navigation
+                    const sidebarLink = sidebar.querySelector(`.nav-item[data-target="${target}"]`);
+                    if (sidebarLink) sidebarLink.click();
+                    closeSidebar();
+                }
+            });
+        });
+
+        sidebar.querySelectorAll('.nav-item').forEach(item => {
+            item.addEventListener('click', () => {
+                const target = item.getAttribute('data-target');
+                if (target) {
+                    bottomNavItems.forEach(i => {
+                        i.classList.toggle('active', i.getAttribute('data-target') === target);
+                    });
+                }
+                if (window.innerWidth <= 1024) closeSidebar();
+            });
         });
     },
 
