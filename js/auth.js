@@ -6,19 +6,20 @@ const AuthManager = {
     currentUser: null,
 
     init: () => {
-        // ONE-TIME WIPE INSTRUCTION
-        if (!localStorage.getItem('wiped_accounts_v5')) {
-            const cols = ['users', 'team', 'tasks', 'finance', 'audit_logs', 'messages', 'events', 'projects', 'clients', 'inventory'];
-            cols.forEach(c => localStorage.removeItem(c));
-            localStorage.removeItem('currentUser');
-            if (typeof firebase !== 'undefined' && firebase.apps.length) {
-                cols.forEach(c => firebase.firestore().collection(c).doc(c).delete().catch(() => { }));
-            }
-            localStorage.setItem('wiped_accounts_v5', 'true');
-            console.log("All accounts wiped out for fresh start.");
+        // Safe start: Initialize sync and workspace
+        if (typeof Store !== 'undefined') {
+            Store.connectSync();
+            Store.initWorkspace();
         }
 
-        Store.initWorkspace();
+        // 🔄 Clear 'Connecting to cloud' message when sync is done
+        window.addEventListener('storeReady', () => {
+            const loginErr = document.getElementById('login-error');
+            const regErr = document.getElementById('register-error');
+            if (loginErr && loginErr.textContent.includes('جاري الاتصال')) loginErr.classList.add('hidden');
+            if (regErr && regErr.textContent.includes('جاري الاتصال')) regErr.classList.add('hidden');
+        });
+
         AuthManager.bindEvents();
         AuthManager.checkAuth();
     },
@@ -67,13 +68,21 @@ const AuthManager = {
         });
     },
 
-    handleLogin: () => {
+    handleLogin: (e) => {
+        if (e && typeof e.preventDefault === 'function') e.preventDefault();
         const emailInput = document.getElementById('login-email').value.trim().toLowerCase();
         const pass = document.getElementById('login-password').value;
         const errEl = document.getElementById('login-error');
 
+        // 🛑 Critical: Wait for Cloud Sync
+        if (typeof Store !== 'undefined' && !Store._initialSyncDone) {
+            errEl.textContent = 'جاري الاتصال بالسحابة... يرجى الانتظار ثانية واحدة.';
+            errEl.classList.remove('hidden');
+            return;
+        }
+
         if (!emailInput || !pass) {
-            errEl.textContent = 'Please fill in all fields.';
+            errEl.textContent = 'يرجى إدخال البريد وكلمة السر.';
             errEl.classList.remove('hidden');
             return;
         }

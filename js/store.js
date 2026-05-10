@@ -34,16 +34,23 @@ const Store = {
 
             // ✅ Real-time Firestore Listeners for ALL collections
             const collections = ['tasks', 'team', 'finance', 'audit_logs', 'messages', 'events', 'presence', 'users', 'workspace', 'projects', 'clients', 'inventory', 'chat_rooms', 'chat_invitations'];
-            let loadedCount = 0;
+            const loadedCollections = new Set();
             
+            // 🕒 Faster Fallback: 3 seconds
+            setTimeout(() => {
+                if (!Store._initialSyncDone) {
+                    console.warn('Store: Sync timeout reached (3s). Proceeding.');
+                    Store._initialSyncDone = true;
+                    window.dispatchEvent(new CustomEvent('storeReady'));
+                }
+            }, 3000);
+
             collections.forEach(collectionName => {
                 db.collection(collectionName).onSnapshot((snapshot) => {
-                    if (Store._syncing) return; // Prevent loop
+                    if (Store._syncing) return;
 
-                    // 🛠️ DATA MIGRATION BRIDGE (Only if Cloud is ABSOLUTELY empty and it's the very first time)
                     const localData = localStorage.getItem(collectionName);
                     if (snapshot.empty && localData && !localStorage.getItem('cloud_migrated_' + collectionName)) {
-                        console.log(`Store: Safe Migrating [${collectionName}] to Cloud...`);
                         try {
                             const parsed = JSON.parse(localData);
                             if (Array.isArray(parsed) && parsed.length > 0) {
@@ -60,9 +67,7 @@ const Store = {
                     snapshot.docChanges().forEach((change) => {
                         const key = change.doc.id;
                         const data = change.doc.data();
-                        
-                        if (data.updatedBy === (AuthManager.currentUser?.id || 'anonymous') && 
-                            (Date.now() - data.timestamp < 2000)) return;
+                        if (data.updatedBy === (AuthManager.currentUser?.id || 'anonymous') && (Date.now() - data.timestamp < 2000)) return;
 
                         Store._syncing = true;
                         try {
@@ -79,19 +84,17 @@ const Store = {
                         Store._refreshSection(key);
                     });
 
-                    // Track progress
-                    if (!Store._initialSyncDone) {
-                        loadedCount++;
-                        if (loadedCount >= collections.length) {
-                            Store._initialSyncDone = true;
-                            console.log('Store: Initial Cloud Sync Complete.');
-                            window.dispatchEvent(new CustomEvent('storeReady'));
-                        }
+                    // 🎯 Optimization: Set ready as soon as 'users' is loaded
+                    if (!Store._initialSyncDone && collectionName === 'users') {
+                        Store._initialSyncDone = true;
+                        console.log('Store: Users collection loaded. Platform ready for Auth.');
+                        window.dispatchEvent(new CustomEvent('storeReady'));
                     }
+                    
+                    loadedCollections.add(collectionName);
                 }, (err) => {
                     console.error(`Store: Sync Error in [${collectionName}]:`, err);
-                    // Still count as loaded to not block app forever
-                    loadedCount++;
+                    loadedCollections.add(collectionName);
                 });
             });
 
