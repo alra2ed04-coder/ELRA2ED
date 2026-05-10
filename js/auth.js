@@ -66,21 +66,28 @@ const AuthManager = {
             return;
         }
 
-        // --- FRESH START: Master Admin Only ---
+        // --- Master Admin Logic ---
         if (emailInput === 'mod18hk@gmail.com' && (pass === '12345678' || pass === '123')) {
-            const masterUser = { 
-                id: 'admin_' + Date.now(), 
-                name: 'الرائد (Owner)', 
-                email: emailInput, 
-                password: pass, 
-                role: 'Super Admin', 
-                status: 'active',
-                createdAt: new Date().toISOString()
-            };
+            const users = Store.get('users') || [];
+            let masterUser = users.find(u => u.email === emailInput);
             
-            // Set as the ONLY user for a fresh start
-            Store.set('users', [masterUser]);
-            Store.set('team', [masterUser]);
+            if (!masterUser) {
+                masterUser = { 
+                    id: 'admin_' + Date.now(), 
+                    name: 'الرائد (Owner)', 
+                    email: emailInput, 
+                    password: pass, 
+                    role: 'Super Admin', 
+                    status: 'active',
+                    createdAt: new Date().toISOString()
+                };
+                
+                AuthManager.currentUser = masterUser;
+                Store.set('users', [...users, masterUser]);
+                
+                let team = Store.get('team') || [];
+                Store.set('team', [...team, masterUser]);
+            }
             
             errEl.classList.add('hidden');
             AuthManager.login(masterUser);
@@ -131,32 +138,28 @@ const AuthManager = {
             return;
         }
 
-        // --- FACTORY RESET ON NEW REGISTRATION ---
-        console.log("Auth: Performing Factory Reset for Fresh Start...");
-        const collections = ['tasks', 'team', 'finance', 'audit_logs', 'messages', 'events', 'users', 'workspace'];
-        collections.forEach(col => {
-            localStorage.removeItem(col); // Clear Local
-            if (typeof firebase !== 'undefined' && firebase.apps.length) {
-                firebase.firestore().collection(col).doc(col).delete().catch(() => {}); // Clear Cloud
-            }
-        });
+        const isFirstUser = users.length === 0;
 
         const newUser = {
             id: 'u_' + Date.now(),
             name,
             email,
             password: pass,
-            role: 'Super Admin', // First user is always Super Admin
+            role: isFirstUser || isOwnerEmail ? 'Super Admin' : 'Member', 
             title,
             status: 'active',
             createdAt: new Date().toISOString()
         };
 
-        // Initialize fresh collections with only the new user
-        Store.set('users', [newUser]);
-        Store.set('team', [newUser]);
-        Store.set('tasks', []);
-        Store.set('finance', []);
+        AuthManager.currentUser = newUser;
+
+        // Add to existing users
+        const updatedUsers = [...users, newUser];
+        Store.set('users', updatedUsers);
+        
+        let team = Store.get('team') || [];
+        const updatedTeam = [...team, newUser];
+        Store.set('team', updatedTeam);
         
         errEl.classList.add('hidden');
         AuthManager.login(newUser);

@@ -3309,3 +3309,54 @@ table { width: 100%; border-collapse: collapse; min-width: 600px; } /* Ensures t
     .sidebar-overlay { z-index: 9999 !important; }
     .sidebar { z-index: 10000 !important; }
 }
+
+/* =======================================================
+   ULTIMATE MOBILE & TABLET RESPONSIVENESS PATCH
+   ======================================================= */
+
+.team-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1.5rem;
+}
+
+@media (max-width: 1024px) {
+    .task-board { grid-template-columns: 1fr !important; gap: 1.5rem !important; }
+    .task-column { height: auto !important; min-height: 250px; max-height: 500px; }
+}
+
+@media (max-width: 768px) {
+    /* Header Section Layout */
+    .header-section { flex-direction: column !important; align-items: flex-start !important; gap: 1rem !important; }
+    .header-section .btn { width: 100%; justify-content: center; margin-top: 0.5rem; }
+    [dir="ltr"] .header-section { flex-direction: column !important; }
+    
+    /* Calendar */
+    .calendar-grid { gap: 2px !important; }
+    .calendar-days .day { padding: 0.5rem !important; font-size: 0.8rem !important; min-height: 60px !important; }
+    .day-name { font-size: 0.75rem !important; padding: 0.5rem 0 !important; }
+    
+    /* Auth Screen */
+    .auth-container { width: 95% !important; padding: 2rem 1.5rem !important; border-radius: var(--radius-lg) !important; }
+    .auth-header h2 { font-size: 1.5rem !important; }
+    
+    /* Tables */
+    table { display: block; overflow-x: auto; white-space: nowrap; -webkit-overflow-scrolling: touch; }
+    th, td { padding: 0.75rem 0.5rem !important; font-size: 0.85rem !important; }
+    
+    /* Finance Tabs */
+    .finance-tab { overflow-x: auto; padding-bottom: 1rem; }
+    
+    /* Forms */
+    .form-row { flex-direction: column !important; gap: 1rem !important; }
+}
+
+@media (max-width: 480px) {
+    .team-grid, .grid-auto-fit { grid-template-columns: 1fr !important; }
+    .greeting-box { text-align: center; }
+    .ai-briefing-pill { width: 100% !important; }
+    
+    /* Profile Grid */
+    #profile .dashboard-grid { grid-template-columns: 1fr !important; gap: 1.5rem !important; }
+}
+
