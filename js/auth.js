@@ -96,14 +96,22 @@ const AuthManager = {
     },
 
     handleRegister: () => {
+        const errEl = document.getElementById('register-error');
+        
+        // 🛑 Critical: Wait for Cloud Sync to finish to avoid data overwrites
+        if (typeof Store !== 'undefined' && !Store._initialSyncDone) {
+            errEl.textContent = 'جاري الاتصال بالسحابة... يرجى الانتظار ثانية واحدة.';
+            errEl.classList.remove('hidden');
+            return;
+        }
+
         const name = document.getElementById('reg-name').value.trim();
         const email = document.getElementById('reg-email').value.trim().toLowerCase();
         const pass = document.getElementById('reg-password').value;
         const title = document.getElementById('reg-title').value.trim();
-        const errEl = document.getElementById('register-error');
 
         if (!name || !email || !pass) {
-            errEl.textContent = 'Please fill in all required fields.';
+            errEl.textContent = 'يرجى ملء جميع الحقول المطلوبة.';
             errEl.classList.remove('hidden');
             return;
         }

@@ -49,13 +49,6 @@ const App = {
             });
             if (tUpdated) Store.set('team', team);
 
-            // ONE-TIME CLEANUP FOR DUMMY DATA
-            if (!localStorage.getItem('wsCleanedV2')) {
-                const modules = ['tasks', 'finance', 'inventory', 'projects', 'clients', 'events', 'announcements', 'chat_rooms', 'chat_invitations', 'auditLogs', 'cloud_drive'];
-                modules.forEach(m => Store.set(m, []));
-                localStorage.setItem('wsCleanedV2', 'true');
-                console.log('App: Platform dummy data cleared.');
-            }
         } catch(e) { console.warn('App.init DB upgrade error:', e); }
 
         // ✅ Connect to real-time sync server FIRST

@@ -10,6 +10,7 @@
 const Store = {
     _syncing: false,    // Prevent update loop
     _connected: false,  // Prevent duplicate Firestore listeners
+    _initialSyncDone: false, // Track if first cloud fetch is complete
 
     /**
      * Connect to the real-time sync server.
@@ -33,23 +34,26 @@ const Store = {
 
             // ✅ Real-time Firestore Listeners for ALL collections
             const collections = ['tasks', 'team', 'finance', 'audit_logs', 'messages', 'events', 'presence', 'users', 'workspace', 'projects', 'clients', 'inventory', 'chat_rooms', 'chat_invitations'];
+            let loadedCount = 0;
             
             collections.forEach(collectionName => {
                 db.collection(collectionName).onSnapshot((snapshot) => {
                     if (Store._syncing) return; // Prevent loop
 
-                    // 🛠️ DATA MIGRATION BRIDGE:
-                    // If Cloud is empty but Local has data, push local to cloud!
-                    const localData = localStorage.getItem(collectionName === 'workspace' ? 'workspace' : collectionName);
-                    if (snapshot.empty && localData) {
-                        console.log(`Store: Migrating [${collectionName}] to Cloud...`);
+                    // 🛠️ DATA MIGRATION BRIDGE (Only if Cloud is ABSOLUTELY empty and it's the very first time)
+                    const localData = localStorage.getItem(collectionName);
+                    if (snapshot.empty && localData && !localStorage.getItem('cloud_migrated_' + collectionName)) {
+                        console.log(`Store: Safe Migrating [${collectionName}] to Cloud...`);
                         try {
                             const parsed = JSON.parse(localData);
-                            db.collection(collectionName).doc(collectionName === 'workspace' ? 'workspace' : collectionName).set({
-                                value: parsed,
-                                updatedBy: 'migration_system',
-                                timestamp: Date.now()
-                            });
+                            if (Array.isArray(parsed) && parsed.length > 0) {
+                                db.collection(collectionName).doc(collectionName).set({
+                                    value: parsed,
+                                    updatedBy: 'migration_system',
+                                    timestamp: Date.now()
+                                });
+                                localStorage.setItem('cloud_migrated_' + collectionName, 'true');
+                            }
                         } catch(e) {}
                     }
 
@@ -57,11 +61,8 @@ const Store = {
                         const key = change.doc.id;
                         const data = change.doc.data();
                         
-                        // Skip if the update came from THIS browser recently
                         if (data.updatedBy === (AuthManager.currentUser?.id || 'anonymous') && 
                             (Date.now() - data.timestamp < 2000)) return;
-
-                        console.log(`Store: Cloud Update received for [${key}] from collection [${collectionName}]`);
 
                         Store._syncing = true;
                         try {
@@ -74,13 +75,23 @@ const Store = {
                             Store._syncing = false;
                         }
 
-                        // Notify the app that data changed
                         window.dispatchEvent(new CustomEvent('storeUpdated', { detail: { key, value: data.value } }));
-                        // Refresh relevant UI sections
                         Store._refreshSection(key);
                     });
+
+                    // Track progress
+                    if (!Store._initialSyncDone) {
+                        loadedCount++;
+                        if (loadedCount >= collections.length) {
+                            Store._initialSyncDone = true;
+                            console.log('Store: Initial Cloud Sync Complete.');
+                            window.dispatchEvent(new CustomEvent('storeReady'));
+                        }
+                    }
                 }, (err) => {
                     console.error(`Store: Sync Error in [${collectionName}]:`, err);
+                    // Still count as loaded to not block app forever
+                    loadedCount++;
                 });
             });
 
