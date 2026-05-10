@@ -114,6 +114,4 @@ const ProjectsManager = {
     }
 };
 
-window.addEventListener('DOMContentLoaded', () => {
-    if (typeof App !== 'undefined') ProjectsManager.init();
-});
+window.ProjectsManager = ProjectsManager;

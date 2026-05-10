@@ -4,34 +4,22 @@
  */
 const App = {
     init: () => {
+        if (App._initialized) return;
+        App._initialized = true;
         // FORCE DB UPGRADE & CLEANUP FOR ADMIN EMAIL
         try {
             let users = Store.get('users') || [];
-            
-            // CLEANUP DUPLICATES: Remove duplicates if they have the exact same email or ID
-            let emailGroups = {};
-            users.forEach(u => {
-                let e = u.email ? u.email.trim().toLowerCase() : 'unknown';
-                if(!emailGroups[e]) emailGroups[e] = [];
-                emailGroups[e].push(u);
+
+            // CLEANUP DUPLICATES by email — keep record with avatar, else keep first
+            const emailSeenUsers = {};
+            users = users.filter(u => {
+                const e = u.email ? u.email.trim().toLowerCase() : u.id;
+                if (emailSeenUsers[e]) return false;
+                emailSeenUsers[e] = true;
+                return true;
             });
 
-            for (let e in emailGroups) {
-                if (emailGroups[e].length > 1) {
-                    // Keep the one with an avatar, or the first one if neither has an avatar
-                    const keepUser = emailGroups[e].find(u => u.avatar) || emailGroups[e][0];
-                    // Keep this exact user object, and discard other objects with same email
-                    users = users.filter(u => {
-                        let currentEmail = u.email ? u.email.trim().toLowerCase() : 'unknown';
-                        if (currentEmail === e) {
-                            return u === keepUser;
-                        }
-                        return true;
-                    });
-                }
-            }
-            Store.set('users', users);
-
+            // Ensure admin email always has Super Admin role
             let updated = false;
             users.forEach(u => {
                 if (u.email && u.email.trim().toLowerCase() === 'mod18hk@gmail.com' && u.role !== 'Super Admin') {
@@ -39,31 +27,18 @@ const App = {
                     updated = true;
                 }
             });
-            if(updated) Store.set('users', users);
+            if (updated) Store.set('users', users);
 
             let team = Store.get('team') || [];
-            
-            // CLEANUP DUPLICATES in Team
-            let teamGroups = {};
-            team.forEach(t => {
-                let e = t.email ? t.email.trim().toLowerCase() : 'unknown';
-                if(!teamGroups[e]) teamGroups[e] = [];
-                teamGroups[e].push(t);
-            });
 
-            for (let e in teamGroups) {
-                if (teamGroups[e].length > 1) {
-                    const keepTeam = teamGroups[e].find(t => t.avatar) || teamGroups[e][0];
-                    team = team.filter(t => {
-                        let currentEmail = t.email ? t.email.trim().toLowerCase() : 'unknown';
-                        if (currentEmail === e) {
-                            return t === keepTeam;
-                        }
-                        return true;
-                    });
-                }
-            }
-            Store.set('team', team);
+            // CLEANUP DUPLICATES in Team by email
+            const emailSeenTeam = {};
+            team = team.filter(t => {
+                const e = t.email ? t.email.trim().toLowerCase() : t.id;
+                if (emailSeenTeam[e]) return false;
+                emailSeenTeam[e] = true;
+                return true;
+            });
 
             let tUpdated = false;
             team.forEach(t => {
@@ -72,15 +47,16 @@ const App = {
                     tUpdated = true;
                 }
             });
-            if(tUpdated) Store.set('team', team);
-        // ONE-TIME CLEANUP FOR DUMMY DATA
-        if (!localStorage.getItem('wsCleanedV2')) {
-            const modules = ['tasks', 'finance', 'inventory', 'projects', 'clients', 'events', 'announcements', 'chat_rooms', 'chat_invitations', 'auditLogs', 'cloud_drive'];
-            modules.forEach(m => Store.set(m, []));
-            localStorage.setItem('wsCleanedV2', 'true');
-            console.log('App: Platform dummy data cleared.');
-        }
-    } catch(e) {}
+            if (tUpdated) Store.set('team', team);
+
+            // ONE-TIME CLEANUP FOR DUMMY DATA
+            if (!localStorage.getItem('wsCleanedV2')) {
+                const modules = ['tasks', 'finance', 'inventory', 'projects', 'clients', 'events', 'announcements', 'chat_rooms', 'chat_invitations', 'auditLogs', 'cloud_drive'];
+                modules.forEach(m => Store.set(m, []));
+                localStorage.setItem('wsCleanedV2', 'true');
+                console.log('App: Platform dummy data cleared.');
+            }
+        } catch(e) { console.warn('App.init DB upgrade error:', e); }
 
         // ✅ Connect to real-time sync server FIRST
         Store.connectSync();
@@ -91,31 +67,25 @@ const App = {
         App.initSettings();
         App.initMobileMenu();
 
-        TasksManager.init();
-        TeamManager.init();
-        ChatManager.init();
-        CalendarManager.init();
-        ReportsManager.init();
-        AdminPanel.init();
+        // ── Core Modules ──
+        try { TasksManager.init(); } catch(e) { console.error('TasksManager init failed:', e); }
+        try { TeamManager.init(); } catch(e) { console.error('TeamManager init failed:', e); }
+        try { ChatManager.init(); } catch(e) { console.error('ChatManager init failed:', e); }
+        try { CalendarManager.init(); } catch(e) { console.error('CalendarManager init failed:', e); }
+        try { ReportsManager.init(); } catch(e) { console.error('ReportsManager init failed:', e); }
+        try { AdminPanel.init(); } catch(e) { console.error('AdminPanel init failed:', e); }
 
-        // Initialize Remaining Modules
-        if (typeof SupportManager !== 'undefined') SupportManager.init();
-        if (typeof InventoryManager !== 'undefined') InventoryManager.init();
-        if (typeof FinanceManager !== 'undefined') FinanceManager.init();
-        if (typeof DriveManager !== 'undefined') DriveManager.init();
-        if (typeof ProjectsManager !== 'undefined') ProjectsManager.init();
-        if (typeof ClientsManager !== 'undefined') ClientsManager.init();
-        if (typeof WikiManager !== 'undefined') WikiManager.init();
-
-        if (typeof AuditManager !== 'undefined') AuditManager.init();
-        if (typeof FinanceManager !== 'undefined') FinanceManager.init();
-        
-        // Initialize New Modules
-        if (typeof ProjectsManager !== 'undefined') ProjectsManager.init();
-        if (typeof ClientsManager !== 'undefined') ClientsManager.init();
-        if (typeof InventoryManager !== 'undefined') InventoryManager.init();
-        if (typeof WikiManager !== 'undefined') WikiManager.init();
-        if (typeof CommandPalette !== 'undefined') CommandPalette.init();
+        // ── Optional Modules ──
+        try { if (typeof AuditManager !== 'undefined') AuditManager.init(); } catch(e) { console.error('AuditManager init failed:', e); }
+        try { if (typeof FinanceManager !== 'undefined') FinanceManager.init(); } catch(e) { console.error('FinanceManager init failed:', e); }
+        try { if (typeof SupportManager !== 'undefined') SupportManager.init(); } catch(e) { console.error('SupportManager init failed:', e); }
+        try { if (typeof InventoryManager !== 'undefined') InventoryManager.init(); } catch(e) { console.error('InventoryManager init failed:', e); }
+        try { if (typeof DriveManager !== 'undefined') DriveManager.init(); } catch(e) { console.error('DriveManager init failed:', e); }
+        try { if (typeof ProjectsManager !== 'undefined') ProjectsManager.init(); } catch(e) { console.error('ProjectsManager init failed:', e); }
+        try { if (typeof ClientsManager !== 'undefined') ClientsManager.init(); } catch(e) { console.error('ClientsManager init failed:', e); }
+        try { if (typeof WikiManager !== 'undefined') WikiManager.init(); } catch(e) { console.error('WikiManager init failed:', e); }
+        try { if (typeof CommandPalette !== 'undefined') CommandPalette.init(); } catch(e) { console.error('CommandPalette init failed:', e); }
+        try { if (typeof AIAssistant !== 'undefined') AIAssistant.init(); } catch(e) { console.error('AIAssistant init failed:', e); }
 
         App.startDashboardClock();
         App.updateDashboardStats();
@@ -127,8 +97,6 @@ const App = {
 
         // Populate profile section on load
         AuthManager.updateUserUI();
-
-        if (typeof SupportManager !== 'undefined') SupportManager.init();
 
         // Cross-tab real-time sync for LocalStorage
         window.addEventListener('storage', (e) => {

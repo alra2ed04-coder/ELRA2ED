@@ -285,12 +285,4 @@ const AIAssistant = {
 // Global Exposure
 window.AIAssistant = AIAssistant;
 
-// Initialization Boot
-document.addEventListener('DOMContentLoaded', () => {
-    let checkInterval = setInterval(() => {
-        if (typeof AuthManager !== 'undefined' && AuthManager.currentUser) {
-            AIAssistant.init();
-            clearInterval(checkInterval);
-        }
-    }, 1000);
-});
+// AIAssistant.init is called from App.init()

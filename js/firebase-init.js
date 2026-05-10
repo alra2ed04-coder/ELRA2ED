@@ -27,11 +27,6 @@ auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
 
 console.log("✅ Firebase Initialized Successfully");
 
-// 🚀 Start Real-time Cloud Sync IMMEDIATELY
-if (typeof Store !== 'undefined') {
-    Store.connectSync();
-    // Verify connection once on load
-    setTimeout(Store.testCloudConnection, 3000);
-}
+// NOTE: Store.connectSync() is called from app.js after all modules are loaded.
 
 window.firebaseApp = { auth, db };

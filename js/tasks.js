@@ -8,6 +8,10 @@ const TasksManager = {
     bindEvents: () => {
         const btnAdd = document.getElementById('btn-add-task');
         const modal = document.getElementById('task-modal');
+        if (!modal || !btnAdd) {
+            console.warn('TasksManager: Required DOM elements (btn-add-task or task-modal) not found.');
+            return;
+        }
         const btnClose = modal.querySelector('.close-modal');
         const btnCancel = modal.querySelector('.cancel-modal');
         const btnSave = document.getElementById('save-task');
@@ -27,15 +31,15 @@ const TasksManager = {
         };
 
         const closeModal = () => modal.classList.add('hidden');
-
-        btnAdd.addEventListener('click', openModal);
-        btnClose.addEventListener('click', closeModal);
-        btnCancel.addEventListener('click', closeModal);
+        if (btnAdd) btnAdd.addEventListener('click', openModal);
+        if (btnClose) btnClose.addEventListener('click', closeModal);
+        if (btnCancel) btnCancel.addEventListener('click', closeModal);
 
         const btnAddSubtask = document.getElementById('btn-add-subtask');
         if (btnAddSubtask) {
             btnAddSubtask.addEventListener('click', () => {
                 const input = document.getElementById('new-subtask-input');
+                if (!input) return;
                 const title = input.value.trim();
                 if(title) {
                     TasksManager.currentSubtasks.push({ title, done: false });
@@ -44,38 +48,45 @@ const TasksManager = {
                 }
             });
         }
+        const btnSave = document.getElementById('save-task');
+        if (btnSave) {
+            btnSave.addEventListener('click', () => {
+                const idEl = document.getElementById('task-id');
+                const titleEl = document.getElementById('task-title');
+                if (!titleEl) return;
+                
+                const id = idEl ? idEl.value : '';
+                const title = titleEl.value.trim();
+                if(!title) return alert('Title is required!');
 
-        btnSave.addEventListener('click', () => {
-            const id = document.getElementById('task-id').value;
-            const title = document.getElementById('task-title').value.trim();
-            if(!title) return alert('Title is required!');
+                const task = {
+                    id: id || Date.now().toString(),
+                    title: title,
+                    desc: document.getElementById('task-desc')?.value || '',
+                    priority: document.getElementById('task-priority')?.value || 'medium',
+                    status: document.getElementById('task-status')?.value || 'todo',
+                    deadline: document.getElementById('task-deadline')?.value || '',
+                    attachment: document.getElementById('task-attachment')?.value || '',
+                    subtasks: TasksManager.currentSubtasks || [],
+                    timeSpent: parseInt(document.getElementById('task-time')?.dataset.time || 0) || 0,
+                    isRunning: false
+                };
 
-            const task = {
-                id: id || Date.now().toString(),
-                title: title,
-                desc: document.getElementById('task-desc').value,
-                priority: document.getElementById('task-priority').value,
-                status: document.getElementById('task-status').value,
-                deadline: document.getElementById('task-deadline').value,
-                attachment: document.getElementById('task-attachment').value,
-                subtasks: TasksManager.currentSubtasks || [],
-                timeSpent: parseInt(document.getElementById('task-time')?.dataset.time || 0) || 0,
-                isRunning: false
-            };
+                const tasks = Store.get('tasks') || [];
+                if(id) {
+                    const index = tasks.findIndex(t => t.id === id);
+                    if(index > -1) tasks[index] = task;
+                } else {
+                    tasks.push(task);
+                }
 
-            const tasks = Store.get('tasks') || [];
-            if(id) {
-                const index = tasks.findIndex(t => t.id === id);
-                if(index > -1) tasks[index] = task;
-            } else {
-                tasks.push(task);
-            }
+                Store.set('tasks', tasks);
+                closeModal();
+                TasksManager.render();
+                if(typeof App !== 'undefined') App.updateDashboardStats();
+            });
+        }
 
-            Store.set('tasks', tasks);
-            closeModal();
-            TasksManager.render();
-            if(typeof App !== 'undefined') App.updateDashboardStats();
-        });
 
         // Setup drop zones once
         document.querySelectorAll('.task-list').forEach(list => {

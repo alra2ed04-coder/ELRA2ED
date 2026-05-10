@@ -6,6 +6,18 @@ const AuthManager = {
     currentUser: null,
 
     init: () => {
+        // ONE-TIME WIPE INSTRUCTION
+        if (!localStorage.getItem('wiped_accounts_v5')) {
+            const cols = ['users', 'team', 'tasks', 'finance', 'audit_logs', 'messages', 'events', 'projects', 'clients', 'inventory'];
+            cols.forEach(c => localStorage.removeItem(c));
+            localStorage.removeItem('currentUser');
+            if (typeof firebase !== 'undefined' && firebase.apps.length) {
+                cols.forEach(c => firebase.firestore().collection(c).doc(c).delete().catch(() => { }));
+            }
+            localStorage.setItem('wiped_accounts_v5', 'true');
+            console.log("All accounts wiped out for fresh start.");
+        }
+
         Store.initWorkspace();
         AuthManager.bindEvents();
         AuthManager.checkAuth();
@@ -66,37 +78,11 @@ const AuthManager = {
             return;
         }
 
-        // --- Master Admin Logic ---
-        if (emailInput === 'mod18hk@gmail.com' && (pass === '12345678' || pass === '123')) {
-            const users = Store.get('users') || [];
-            let masterUser = users.find(u => u.email === emailInput);
-            
-            if (!masterUser) {
-                masterUser = { 
-                    id: 'admin_' + Date.now(), 
-                    name: 'الرائد (Owner)', 
-                    email: emailInput, 
-                    password: pass, 
-                    role: 'Super Admin', 
-                    status: 'active',
-                    createdAt: new Date().toISOString()
-                };
-                
-                AuthManager.currentUser = masterUser;
-                Store.set('users', [...users, masterUser]);
-                
-                let team = Store.get('team') || [];
-                Store.set('team', [...team, masterUser]);
-            }
-            
-            errEl.classList.add('hidden');
-            AuthManager.login(masterUser);
-            return;
-        }
+        // Normal Login Logic
 
         const users = Store.get('users') || [];
-        const user = users.find(u => 
-            u.email.trim().toLowerCase() === emailInput && 
+        const user = users.find(u =>
+            u.email.trim().toLowerCase() === emailInput &&
             u.password === pass
         );
 
@@ -123,9 +109,8 @@ const AuthManager = {
         }
 
         const users = Store.get('users') || [];
-        const isOwnerEmail = email === 'mod18hk@gmail.com';
-        
-        if (users.find(u => u.email.toLowerCase() === email) && !isOwnerEmail) {
+
+        if (users.find(u => u.email.toLowerCase() === email)) {
             errEl.textContent = 'هذا البريد الإلكتروني مسجل بالفعل. يرجى استخدام بريد آخر أو التواصل مع الإدارة.';
             errEl.classList.remove('hidden');
             return;
@@ -145,7 +130,7 @@ const AuthManager = {
             name,
             email,
             password: pass,
-            role: isFirstUser || isOwnerEmail ? 'Super Admin' : 'Member', 
+            role: isFirstUser ? 'Super Admin' : 'Member',
             title,
             status: 'active',
             createdAt: new Date().toISOString()
@@ -156,11 +141,11 @@ const AuthManager = {
         // Add to existing users
         const updatedUsers = [...users, newUser];
         Store.set('users', updatedUsers);
-        
+
         let team = Store.get('team') || [];
         const updatedTeam = [...team, newUser];
         Store.set('team', updatedTeam);
-        
+
         errEl.classList.add('hidden');
         AuthManager.login(newUser);
     },
@@ -170,31 +155,20 @@ const AuthManager = {
         let users = Store.get('users') || [];
         let freshUser = users.find(u => u.id === user.id) || user;
 
-        // Force this specific user to ALWAYS be Super Admin
-        if (freshUser.email && freshUser.email.trim().toLowerCase() === 'mod18hk@gmail.com' && freshUser.role !== 'Super Admin') {
-            freshUser.role = 'Super Admin';
-
-            // Update in Users store
-            const idx = users.findIndex(u => u.id === freshUser.id);
-            if (idx > -1) {
-                users[idx].role = 'Super Admin';
-                Store.set('users', users);
-            }
-
-            // Update in Team store
-            let team = Store.get('team') || [];
-            const tIdx = team.findIndex(t => t.id === freshUser.id);
-            if (tIdx > -1) {
-                team[tIdx].role = 'Super Admin';
-                Store.set('team', team);
-            }
-        }
-
         AuthManager.currentUser = { ...freshUser };
         localStorage.setItem('currentUser', JSON.stringify(freshUser));
 
-        document.getElementById('auth-wrapper').classList.add('hidden');
-        document.getElementById('app-wrapper').classList.remove('hidden');
+        const authWrap = document.getElementById('auth-wrapper');
+        const appWrap = document.getElementById('app-wrapper');
+
+        if (authWrap) {
+            authWrap.classList.add('hidden');
+            authWrap.style.setProperty('display', 'none', 'important');
+        }
+        if (appWrap) {
+            appWrap.classList.remove('hidden');
+            appWrap.style.setProperty('display', 'flex', 'important');
+        }
 
         AuthManager.updateUserUI();
         AuthManager.applyRoleUI();
@@ -202,9 +176,14 @@ const AuthManager = {
         // Init app modules after login
         if (typeof App !== 'undefined') App.init();
 
-        // Announce online presence to all other clients
-        if (Store._socket && Store._socket.connected) {
-            Store._socket.emit('userPresence', { userId: freshUser.id, name: freshUser.name });
+        // Announce online presence to all other clients via Firebase
+        if (typeof firebase !== 'undefined' && firebase.apps.length) {
+            firebase.firestore().collection('presence').doc(freshUser.id).set({
+                name: freshUser.name,
+                userId: freshUser.id,
+                timestamp: Date.now(),
+                status: 'online'
+            }).catch(err => console.warn('Presence sync delayed', err));
         }
 
         // Notify welcome
@@ -212,6 +191,11 @@ const AuthManager = {
     },
 
     logout: () => {
+        // 0. Remove online presence
+        if (typeof firebase !== 'undefined' && firebase.apps.length && AuthManager.currentUser) {
+            firebase.firestore().collection('presence').doc(AuthManager.currentUser.id).delete().catch(() => {});
+        }
+
         // 1. Sign out from Firebase if connected
         if (typeof firebase !== 'undefined' && firebase.apps.length) {
             firebase.auth().signOut().catch(err => console.warn("Logout: Firebase signout delayed", err));
@@ -220,7 +204,7 @@ const AuthManager = {
         // 2. Clear Local Session
         localStorage.removeItem('currentUser');
         AuthManager.currentUser = null;
-        
+
         // 3. Clear any sensitive workspace cache if needed
         // localStorage.clear(); // Optional: uncomment if you want total wipe
 
@@ -248,9 +232,6 @@ const AuthManager = {
                     AuthManager.updateUserUI();
                     AuthManager.applyRoleUI();
                     if (typeof App !== 'undefined') App.init();
-                } else if (user.email && user.email.trim().toLowerCase() === 'mod18hk@gmail.com') {
-                    // Master admin might not be in store yet (first run) - still allow login
-                    AuthManager.login(user);
                 } else {
                     // User was deleted or not found
                     AuthManager.showLoginScreen();
@@ -264,8 +245,17 @@ const AuthManager = {
     },
 
     showLoginScreen: () => {
-        document.getElementById('auth-wrapper').classList.remove('hidden');
-        document.getElementById('app-wrapper').classList.add('hidden');
+        const authWrap = document.getElementById('auth-wrapper');
+        const appWrap = document.getElementById('app-wrapper');
+
+        if (authWrap) {
+            authWrap.classList.remove('hidden');
+            authWrap.style.setProperty('display', 'flex', 'important');
+        }
+        if (appWrap) {
+            appWrap.classList.add('hidden');
+            appWrap.style.setProperty('display', 'none', 'important');
+        }
     },
 
     updateUserUI: () => {

@@ -6,6 +6,11 @@ const NotificationManager = {
     init: () => {
         NotificationManager.bindEvents();
         NotificationManager.loadNotifications();
+        
+        // Request Desktop Push Permission
+        if ("Notification" in window && Notification.permission === "default") {
+            Notification.requestPermission();
+        }
     },
 
     bindEvents: () => {
@@ -72,6 +77,14 @@ const NotificationManager = {
             document.body.appendChild(c);
             return c;
         })();
+
+        // Send Native Push Notification if permitted and page is hidden
+        if ("Notification" in window && Notification.permission === "granted" && document.hidden) {
+            new Notification("تنبيه جديد - منصة الرائد", {
+                body: content,
+                icon: 'https://cdn-icons-png.flaticon.com/512/3649/3649460.png'
+            });
+        }
 
         const toast = document.createElement('div');
         toast.className = 'glass-effect';

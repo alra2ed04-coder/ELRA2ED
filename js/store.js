@@ -8,8 +8,8 @@
  * - Any Store.set() call is broadcast to all connected browsers instantly.
  */
 const Store = {
-    _socket: null,
-    _syncing: false, // Flag to prevent infinite loop when receiving updates
+    _syncing: false,    // Prevent update loop
+    _connected: false,  // Prevent duplicate Firestore listeners
 
     /**
      * Connect to the real-time sync server.
@@ -17,17 +17,22 @@ const Store = {
      */
     connectSync: () => {
         try {
+            if (Store._connected) {
+                console.log('Store: Already connected to Firebase, skipping duplicate.');
+                return;
+            }
             if (typeof firebase === 'undefined' || !firebase.apps.length) {
                 console.warn('Store: Firebase not initialized or keys missing. Running in local mode.');
                 return;
             }
+            Store._connected = true;
 
             const db = firebase.firestore();
             console.log('Store: Connecting to Firebase Cloud Sync...');
 
 
             // ✅ Real-time Firestore Listeners for ALL collections
-            const collections = ['tasks', 'team', 'finance', 'audit_logs', 'messages', 'events', 'presence', 'users', 'workspace'];
+            const collections = ['tasks', 'team', 'finance', 'audit_logs', 'messages', 'events', 'presence', 'users', 'workspace', 'projects', 'clients', 'inventory', 'chat_rooms', 'chat_invitations'];
             
             collections.forEach(collectionName => {
                 db.collection(collectionName).onSnapshot((snapshot) => {
@@ -192,10 +197,10 @@ const Store = {
             localStorage.setItem(key, JSON.stringify(value));
 
             // 2. Sync to Firestore (Cloud)
-            const PERSONAL_KEY_PREFIXES = ['pm_', 'savedMessages_', 'currentUser', 'wsInitialized'];
+            const PERSONAL_KEY_PREFIXES = ['savedMessages_', 'currentUser', 'wsInitialized'];
             const isPersonal = PERSONAL_KEY_PREFIXES.some(prefix => key.startsWith(prefix));
             
-            if (!isPersonal && typeof firebase !== 'undefined' && firebase.apps.length && !Store._syncing) {
+            if (!isPersonal && typeof firebase !== 'undefined' && firebase.apps.length && !Store._syncing && AuthManager.currentUser) {
                 const db = firebase.firestore();
                 const me = AuthManager.currentUser;
                 
@@ -205,13 +210,20 @@ const Store = {
                     'team': 'team',
                     'finance': 'finance',
                     'auditLogs': 'audit_logs',
-                    'messages': 'messages',
                     'events': 'events',
                     'presence': 'presence',
-                    'users': 'users'
+                    'users': 'users',
+                    'projects': 'projects',
+                    'clients': 'clients',
+                    'inventory': 'inventory',
+                    'chat_rooms': 'chat_rooms',
+                    'chat_invitations': 'chat_invitations'
                 };
 
-                const collectionName = collectionMap[key] || 'workspace';
+                let collectionName = collectionMap[key] || 'workspace';
+                if (key.startsWith('pm_') || key.startsWith('room_msgs_')) {
+                    collectionName = 'messages';
+                }
 
                 db.collection(collectionName).doc(key).set({
                     value: value,

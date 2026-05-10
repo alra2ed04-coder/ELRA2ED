@@ -13,7 +13,7 @@ const ChatManager = {
     _isSelfChat: false,
 
     // ─── Storage Keys ─────────────────────────────────────────
-    _getPrivateKey: (me, otherId) => `pm_${me.id}__${[me.id, otherId].sort().join('_')}`,
+    _getPrivateKey: (me, otherId) => `pm_${[me.id, otherId].sort().join('_')}`,
     _getSelfKey: (me) => `savedMessages_${me.id}`,
     _getRoomKey: (roomId) => `room_msgs_${roomId}`,
 
@@ -54,36 +54,30 @@ const ChatManager = {
                     ChatManager.renderMessages();
                 }
             }
-        });
 
-        if (Store._socket) {
-            Store._socket.on('userTyping', ({ userId, isTyping }) => {
-                const statusEl = document.getElementById('chat-active-status');
-                if (ChatManager.currentReceiverId === userId && statusEl) {
-                    if (isTyping) {
-                        statusEl.innerHTML = `<span style="color:var(--success);"><i class="fas fa-pencil-alt fa-spin"></i> يكتب الآن...</span>`;
+            // Handle Private Message Notifications
+            if (key?.startsWith('pm_')) {
+                const msgs = value || [];
+                const lastMsg = msgs[msgs.length - 1];
+                const me = AuthManager.currentUser;
+
+                if (lastMsg && lastMsg.senderId !== me.id) {
+                    // It's a message for me
+                    if (ChatManager.currentType === 'private' && ChatManager.currentReceiverId === lastMsg.senderId) {
+                        ChatManager.renderMessages();
                     } else {
-                        ChatManager._updateActiveStatus(userId);
+                        NotificationManager.add(`💬 رسالة جديدة من ${lastMsg.senderName}`, 'fa-comment', 'chat', lastMsg.senderId);
+                    }
+                } else if (lastMsg && lastMsg.senderId === me.id) {
+                    // It's a message I sent from another device or just confirming it
+                    if (ChatManager.currentType === 'private') {
+                        ChatManager.renderMessages();
                     }
                 }
-            });
-            Store._socket.on('privateMessage', (msg) => {
-                const me = AuthManager.currentUser;
-                if (!me) return;
-                const key = ChatManager._getPrivateKey(me, msg.senderId);
-                const msgs = JSON.parse(localStorage.getItem(key) || '[]');
-                msgs.push(msg);
-                localStorage.setItem(key, JSON.stringify(msgs));
+            }
+        });
 
-                if (ChatManager.currentType === 'private' && ChatManager.currentReceiverId === msg.senderId) {
-                    ChatManager.renderMessages();
-                } else {
-                    NotificationManager.add(`💬 رسالة جديدة من ${msg.senderName}`, 'fa-comment', 'chat');
-                }
-            });
-        }
-        if (typeof AuditManager !== 'undefined') AuditManager.init();
-        if (typeof FinanceManager !== 'undefined') FinanceManager.init();
+        // Managers are now initialized centrally in App.init
 
         // Global Avatar Error Handler
         document.addEventListener('error', (e) => {
@@ -528,8 +522,11 @@ const ChatManager = {
         if (!me || !ChatManager.currentReceiverId) return;
 
         if (ChatManager.currentType === 'private') {
-            if (ChatManager._isSelfChat) localStorage.setItem(ChatManager._getSelfKey(me), JSON.stringify(msgs));
-            else localStorage.setItem(ChatManager._getPrivateKey(me, ChatManager.currentReceiverId), JSON.stringify(msgs));
+            if (ChatManager._isSelfChat) {
+                localStorage.setItem(ChatManager._getSelfKey(me), JSON.stringify(msgs));
+            } else {
+                Store.set(ChatManager._getPrivateKey(me, ChatManager.currentReceiverId), msgs);
+            }
         } else {
             Store.set(ChatManager._getRoomKey(ChatManager.currentReceiverId), msgs);
         }
@@ -658,32 +655,18 @@ const ChatManager = {
             msgs.push(msg);
             ChatManager.saveMessages(msgs);
 
-            if (ChatManager.currentType === 'private' && !ChatManager._isSelfChat && Store._socket?.connected) {
-                Store._socket.emit('privateMessage', { ...msg, toId: ChatManager.currentReceiverId });
+            if (ChatManager.currentType === 'private' && !ChatManager._isSelfChat) {
+                // Now handled by Store.set in saveMessages
             }
 
             input.value = '';
             ChatManager._pendingAttachment = null;
             document.getElementById('chat-attachment-preview').style.display = 'none';
             ChatManager.renderMessages();
-            
-            // Stop typing status
-            if (Store._socket) {
-                Store._socket.emit('typing', { userId: me.id, isTyping: false });
-            }
         };
 
-        let typingTimeout;
         input.addEventListener('input', () => {
-            if (Store._socket) {
-                const me = AuthManager.currentUser;
-                Store._socket.emit('typing', { userId: me.id, isTyping: true });
-                
-                clearTimeout(typingTimeout);
-                typingTimeout = setTimeout(() => {
-                    Store._socket.emit('typing', { userId: me.id, isTyping: false });
-                }, 3000);
-            }
+            // Typing logic removed for now
         });
 
         btn.onclick = send;
@@ -746,4 +729,4 @@ _chatStyles.textContent = `
 document.head.appendChild(_chatStyles);
 
 window.ChatManager = ChatManager;
-ChatManager.init();
+// ChatManager.init() is now called from App.init() to ensure proper order

@@ -657,5 +657,9 @@ const LangManager = {
 
 window.LangManager = LangManager;
 
-// Run synchronously since script is at the end of the body
-LangManager.init();
+// Wait for DOM before applying language (since lang.js now loads early)
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => LangManager.init());
+} else {
+    LangManager.init();
+}

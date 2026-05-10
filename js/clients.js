@@ -98,6 +98,4 @@ const ClientsManager = {
     }
 };
 
-window.addEventListener('DOMContentLoaded', () => {
-    if (typeof App !== 'undefined') ClientsManager.init();
-});
+window.ClientsManager = ClientsManager;

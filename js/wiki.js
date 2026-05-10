@@ -193,6 +193,4 @@ const WikiManager = {
     }
 };
 
-window.addEventListener('DOMContentLoaded', () => {
-    if (typeof App !== 'undefined') WikiManager.init();
-});
+window.WikiManager = WikiManager;

@@ -118,7 +118,4 @@ const InventoryManager = {
         InventoryManager.render();
     }
 };
-
-window.addEventListener('DOMContentLoaded', () => {
-    if (typeof App !== 'undefined') InventoryManager.init();
-});
+window.InventoryManager = InventoryManager;
