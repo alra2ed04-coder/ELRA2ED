@@ -70,37 +70,37 @@ const NotificationManager = {
     },
 
     showToast: (content, icon, type) => {
+        const isRtl = document.documentElement.dir === 'rtl';
         const container = document.getElementById('toast-container') || (() => {
             const c = document.createElement('div');
             c.id = 'toast-container';
-            c.style.cssText = 'position:fixed; top:20px; right:20px; z-index:10000; display:flex; flex-direction:column; gap:10px; pointer-events:none;';
+            c.style.cssText = `position:fixed; top:20px; ${isRtl ? 'left' : 'right'}:20px; z-index:10000; display:flex; flex-direction:column; gap:10px; pointer-events:none;`;
             document.body.appendChild(c);
             return c;
         })();
 
-        // Send Native Push Notification if permitted and page is hidden
         if ("Notification" in window && Notification.permission === "granted" && document.hidden) {
-            new Notification("تنبيه جديد - منصة الرائد", {
-                body: content,
-                icon: 'https://cdn-icons-png.flaticon.com/512/3649/3649460.png'
-            });
+            new Notification("تنبيه جديد - منصة الرائد", { body: content, icon: 'https://cdn-icons-png.flaticon.com/512/3649/3649460.png' });
         }
 
         const toast = document.createElement('div');
         toast.className = 'glass-effect';
+        const offScreen = isRtl ? '-120%' : '120%';
+        const borderSide = isRtl ? 'right' : 'left';
+        
         toast.style.cssText = `
             pointer-events: auto; padding: 12px 20px; display: flex; align-items: center; gap: 12px;
-            background: var(--bg-secondary); border-left: 4px solid ${NotificationManager.getTypeColor(type)};
-            box-shadow: var(--shadow-lg); transform: translateX(120%); transition: all 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            background: var(--bg-secondary); border-${borderSide}: 4px solid ${NotificationManager.getTypeColor(type)};
+            box-shadow: var(--shadow-lg); transform: translateX(${offScreen}); transition: all 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
             min-width: 300px; max-width: 450px;
         `;
         
         toast.innerHTML = `
-            <div style="width:32px; height:32px; border-radius:50%; background:${NotificationManager.getTypeColor(type)}; display:flex; align-items:center; justify-content:center; color:white;">
+            <div style="width:32px; height:32px; border-radius:50%; background:${NotificationManager.getTypeColor(type)}; display:flex; align-items:center; justify-content:center; color:white; flex-shrink:0;">
                 <i class="fas ${icon}"></i>
             </div>
             <div style="flex:1;">
-                <p style="font-size:0.9rem; font-weight:600; margin:0;">${content}</p>
+                <p style="font-size:0.9rem; font-weight:600; margin:0; line-height:1.4;">${content}</p>
             </div>
             <button style="background:none; border:none; cursor:pointer; color:var(--text-secondary);" onclick="this.parentElement.remove()">
                 <i class="fas fa-times"></i>
@@ -111,7 +111,7 @@ const NotificationManager = {
         requestAnimationFrame(() => toast.style.transform = 'translateX(0)');
 
         setTimeout(() => {
-            toast.style.transform = 'translateX(120%)';
+            toast.style.transform = `translateX(${offScreen})`;
             setTimeout(() => toast.remove(), 500);
         }, 5000);
     },

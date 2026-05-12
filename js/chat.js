@@ -20,6 +20,7 @@ const ChatManager = {
     _getSelfKey: (me) => `savedMessages_${me.id}`,
     _getRoomKey: (roomId) => `room_msgs_${roomId}`,
 
+    _knownMessageIds: new Set(),
     init: () => {
         ChatManager.bindTabEvents();
         ChatManager.bindSendEvent();
@@ -33,6 +34,16 @@ const ChatManager = {
         ChatManager.render();
         setTimeout(() => { if (ChatManager._updateNavBadge) ChatManager._updateNavBadge(); }, 200);
 
+        // Populate known message IDs to prevent notification flood on load
+        Object.keys(localStorage).forEach(k => {
+            if (k.startsWith('pm_') || k.startsWith('room_msgs_')) {
+                try {
+                    const msgs = JSON.parse(localStorage.getItem(k) || '[]');
+                    msgs.forEach(m => ChatManager._knownMessageIds.add(m.id));
+                } catch(e){}
+            }
+        });
+
         window.addEventListener('storeUpdated', (e) => {
             const key = e.detail?.key;
             const value = e.detail?.value;
@@ -41,7 +52,7 @@ const ChatManager = {
                 ChatManager.render();
             }
 
-            // Typing indicator from other user
+            // Typing indicator
             if (key?.startsWith('typing_')) {
                 const me = AuthManager.currentUser;
                 if (!me) return;
@@ -49,82 +60,68 @@ const ChatManager = {
                 const myConvKey = ChatManager.currentReceiverId
                     ? ChatManager._getPrivateKey(me, ChatManager.currentReceiverId)
                     : null;
-                if (myConvKey === convKey && value && value.userId !== me.id) {
-                    const tyEl = document.getElementById('chat-typing-indicator');
-                    const tyText = document.getElementById('chat-typing-text');
-                    if (tyEl) {
-                        tyEl.style.display = 'flex';
-                        if (tyText) tyText.textContent = (value.userName || 'المستخدم') + ' يكتب الآن...';
-                        clearTimeout(ChatManager._otherTypingTimeout);
-                        ChatManager._otherTypingTimeout = setTimeout(() => { tyEl.style.display = 'none'; }, 4000);
-                    }
-                } else {
-                    // value is null/stale => hide
-                    const tyEl = document.getElementById('chat-typing-indicator');
-                    if (tyEl && myConvKey === convKey) tyEl.style.display = 'none';
+                const tyEl = document.getElementById('chat-typing-indicator');
+                const tyText = document.getElementById('chat-typing-text');
+                
+                if (tyEl && myConvKey === convKey && value && value.userId !== me.id) {
+                    tyEl.style.display = 'flex';
+                    if (tyText) tyText.textContent = (value.userName || 'المستخدم') + ' يكتب الآن...';
+                    clearTimeout(ChatManager._otherTypingTimeout);
+                    ChatManager._otherTypingTimeout = setTimeout(() => { tyEl.style.display = 'none'; }, 3000);
+                } else if (tyEl && myConvKey === convKey) {
+                    tyEl.style.display = 'none';
                 }
             }
 
-            // Handle Room Message Notifications
-            if (key?.startsWith('room_msgs_')) {
-                const roomId = key.replace('room_msgs_', '');
-                const msgs = value || [];
-                const lastMsg = msgs[msgs.length - 1];
+            // Real-Time Messages & Notifications
+            if (key?.startsWith('pm_') || key?.startsWith('room_msgs_')) {
                 const me = AuthManager.currentUser;
                 if (!me) return;
+                const msgs = value || [];
+                
+                let hasNewForMe = false;
+                let latestMsg = null;
 
-                if (lastMsg && lastMsg.senderId !== me.id) {
-                    if (ChatManager.currentReceiverId === roomId) {
-                        ChatManager.renderMessages();
-                    } else {
-                        ChatManager._incrementUnread(key);
-                        ChatManager._updateNavBadge();
-                        ChatManager._playSound();
-                        NotificationManager.add(`💬 ${lastMsg.senderName}: ${lastMsg.content.substring(0, 30)}${lastMsg.content.length > 30 ? '...' : ''}`, 'fa-comments', 'message', roomId);
+                msgs.forEach(msg => {
+                    if (!ChatManager._knownMessageIds.has(msg.id)) {
+                        ChatManager._knownMessageIds.add(msg.id);
+                        if (msg.senderId !== me.id) {
+                            hasNewForMe = true;
+                            latestMsg = msg;
+                        }
                     }
-                } else if (ChatManager.currentReceiverId === roomId) {
+                });
+
+                const isPrivate = key.startsWith('pm_');
+                let isActiveConv = false;
+                if (ChatManager.currentReceiverId && document.getElementById('chat-section')?.classList.contains('active')) {
+                    if (isPrivate && !ChatManager._isSelfChat && ChatManager._getPrivateKey(me, ChatManager.currentReceiverId) === key) {
+                        isActiveConv = true;
+                    } else if (!isPrivate && ChatManager._getRoomKey(ChatManager.currentReceiverId) === key) {
+                        isActiveConv = true;
+                    }
+                }
+
+                if (isActiveConv) {
+                    ChatManager._clearUnread(key);
                     ChatManager.renderMessages();
+                } else if (hasNewForMe && latestMsg) {
+                    ChatManager._updateNavBadge();
+                    ChatManager._playSound();
+                    const roomName = isPrivate ? latestMsg.senderName : ((Store.get('chat_rooms')||[]).find(r=>r.id === key.replace('room_msgs_',''))?.name || 'مجموعة');
+                    NotificationManager.add('💬 رسالة جديدة من ' + latestMsg.senderName + (isPrivate ? '' : ' في ' + roomName), 'fa-comment', 'chat', isPrivate ? latestMsg.senderId : key.replace('room_msgs_',''));
                 }
-            }
 
-            // Handle Private Message Notifications
-            if (key?.startsWith('pm_')) {
-                const msgs = value || [];
-                const lastMsg = msgs[msgs.length - 1];
-                const me = AuthManager.currentUser;
-                if (!me) return;
-
-                if (lastMsg && lastMsg.senderId !== me.id) {
-                    const curKey = ChatManager.currentType === 'private' && ChatManager.currentReceiverId && !ChatManager._isSelfChat
-                        ? ChatManager._getPrivateKey(me, ChatManager.currentReceiverId) : null;
-                    const isActive = curKey === key && document.getElementById('chat-section')?.classList.contains('active');
-
-                    // It's a message for me
-                    if (isActive) {
-                        ChatManager.renderMessages();
-                    } else {
-                        ChatManager._incrementUnread(key);
-                        ChatManager._updateNavBadge();
-                        ChatManager._playSound();
-                        NotificationManager.add(`💬 رسالة جديدة من ${lastMsg.senderName}`, 'fa-comment', 'chat', lastMsg.senderId);
-                    }
-                    ChatManager.loadUsers();
-                } else if (lastMsg && lastMsg.senderId === me.id) {
-                    // It's a message I sent from another device or just confirming it
-                    if (ChatManager.currentType === 'private') {
-                        ChatManager.renderMessages();
-                    }
-                }
+                if (ChatManager.currentType === 'private') ChatManager.loadUsers();
+                else ChatManager.loadRooms();
             }
         });
-
-        // Managers are now initialized centrally in App.init
 
         // Global Avatar Error Handler
         document.addEventListener('error', (e) => {
             if (e.target.tagName === 'IMG' && (e.target.classList.contains('chat-header-avatar') || e.target.closest('.chat-container'))) {
                 const name = ChatManager.currentReceiverName || 'User';
-                e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=6366f1&color=fff`;
+                e.target.src = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(name) + '&background=6366f1&color=fff';
             }
         }, true);
     },
@@ -810,27 +807,40 @@ const ChatManager = {
         NotificationManager.add(LangManager.t('Delete Conversation'), 'fa-trash', 'chat');
     },
 
-    // ─── Unread Counter ──────────────────────────────────────────────
-    _incrementUnread: (convKey) => {
-        const data = JSON.parse(localStorage.getItem('chat_unread') || '{}');
-        data[convKey] = (data[convKey] || 0) + 1;
-        localStorage.setItem('chat_unread', JSON.stringify(data));
-    },
-
+    // ─── Unread Counter (Timestamp-based) ─────────────────────────
     _clearUnread: (convKey) => {
-        const data = JSON.parse(localStorage.getItem('chat_unread') || '{}');
-        delete data[convKey];
-        localStorage.setItem('chat_unread', JSON.stringify(data));
+        const data = JSON.parse(localStorage.getItem('chat_last_read') || '{}');
+        data[convKey] = Date.now();
+        localStorage.setItem('chat_last_read', JSON.stringify(data));
+        ChatManager._updateNavBadge();
     },
 
     _getTotalUnread: () => {
-        const data = JSON.parse(localStorage.getItem('chat_unread') || '{}');
-        return Object.values(data).reduce((s, v) => s + v, 0);
+        const me = AuthManager.currentUser;
+        if (!me) return 0;
+        let total = 0;
+        const lastRead = JSON.parse(localStorage.getItem('chat_last_read') || '{}');
+        
+        (Store.get('team') || []).filter(m => m.id !== me.id).forEach(m => {
+            const k = ChatManager._getPrivateKey(me, m.id);
+            const lr = lastRead[k] || 0;
+            total += (Store.get(k) || []).filter(msg => msg.senderId !== me.id && new Date(msg.timestamp).getTime() > lr).length;
+        });
+
+        (Store.get('chat_rooms') || []).filter(r => r.members?.includes(me.id)).forEach(r => {
+            const k = ChatManager._getRoomKey(r.id);
+            const lr = lastRead[k] || 0;
+            total += (Store.get(k) || []).filter(msg => msg.senderId !== me.id && new Date(msg.timestamp).getTime() > lr).length;
+        });
+
+        return total;
     },
 
     _getConvUnread: (convKey) => {
-        const data = JSON.parse(localStorage.getItem('chat_unread') || '{}');
-        return data[convKey] || 0;
+        const me = AuthManager.currentUser;
+        if (!me) return 0;
+        const lr = JSON.parse(localStorage.getItem('chat_last_read') || '{}')[convKey] || 0;
+        return (Store.get(convKey) || []).filter(msg => msg.senderId !== me.id && new Date(msg.timestamp).getTime() > lr).length;
     },
 
     // ─── Nav Badge ────────────────────────────────────────────────────
