@@ -14,7 +14,6 @@ const TasksManager = {
         }
         const btnClose = modal.querySelector('.close-modal');
         const btnCancel = modal.querySelector('.cancel-modal');
-        const btnSave = document.getElementById('save-task');
 
         const openModal = () => {
             document.getElementById('task-id').value = '';

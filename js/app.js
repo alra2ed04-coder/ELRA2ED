@@ -49,7 +49,7 @@ const App = {
             });
             if (tUpdated) Store.set('team', team);
 
-        } catch(e) { console.warn('App.init DB upgrade error:', e); }
+        } catch (e) { console.warn('App.init DB upgrade error:', e); }
 
         // ✅ Connect to real-time sync server FIRST
         Store.connectSync();
@@ -61,24 +61,24 @@ const App = {
         App.initMobileMenu();
 
         // ── Core Modules ──
-        try { TasksManager.init(); } catch(e) { console.error('TasksManager init failed:', e); }
-        try { TeamManager.init(); } catch(e) { console.error('TeamManager init failed:', e); }
-        try { ChatManager.init(); } catch(e) { console.error('ChatManager init failed:', e); }
-        try { CalendarManager.init(); } catch(e) { console.error('CalendarManager init failed:', e); }
-        try { ReportsManager.init(); } catch(e) { console.error('ReportsManager init failed:', e); }
-        try { AdminPanel.init(); } catch(e) { console.error('AdminPanel init failed:', e); }
+        try { TasksManager.init(); } catch (e) { console.error('TasksManager init failed:', e); }
+        try { TeamManager.init(); } catch (e) { console.error('TeamManager init failed:', e); }
+        try { ChatManager.init(); } catch (e) { console.error('ChatManager init failed:', e); }
+        try { CalendarManager.init(); } catch (e) { console.error('CalendarManager init failed:', e); }
+        try { ReportsManager.init(); } catch (e) { console.error('ReportsManager init failed:', e); }
+        try { AdminPanel.init(); } catch (e) { console.error('AdminPanel init failed:', e); }
 
         // ── Optional Modules ──
-        try { if (typeof AuditManager !== 'undefined') AuditManager.init(); } catch(e) { console.error('AuditManager init failed:', e); }
-        try { if (typeof FinanceManager !== 'undefined') FinanceManager.init(); } catch(e) { console.error('FinanceManager init failed:', e); }
-        try { if (typeof SupportManager !== 'undefined') SupportManager.init(); } catch(e) { console.error('SupportManager init failed:', e); }
-        try { if (typeof InventoryManager !== 'undefined') InventoryManager.init(); } catch(e) { console.error('InventoryManager init failed:', e); }
-        try { if (typeof DriveManager !== 'undefined') DriveManager.init(); } catch(e) { console.error('DriveManager init failed:', e); }
-        try { if (typeof ProjectsManager !== 'undefined') ProjectsManager.init(); } catch(e) { console.error('ProjectsManager init failed:', e); }
-        try { if (typeof ClientsManager !== 'undefined') ClientsManager.init(); } catch(e) { console.error('ClientsManager init failed:', e); }
-        try { if (typeof WikiManager !== 'undefined') WikiManager.init(); } catch(e) { console.error('WikiManager init failed:', e); }
-        try { if (typeof CommandPalette !== 'undefined') CommandPalette.init(); } catch(e) { console.error('CommandPalette init failed:', e); }
-        try { if (typeof AIAssistant !== 'undefined') AIAssistant.init(); } catch(e) { console.error('AIAssistant init failed:', e); }
+        try { if (typeof AuditManager !== 'undefined') AuditManager.init(); } catch (e) { console.error('AuditManager init failed:', e); }
+        try { if (typeof FinanceManager !== 'undefined') FinanceManager.init(); } catch (e) { console.error('FinanceManager init failed:', e); }
+        try { if (typeof SupportManager !== 'undefined') SupportManager.init(); } catch (e) { console.error('SupportManager init failed:', e); }
+        try { if (typeof InventoryManager !== 'undefined') InventoryManager.init(); } catch (e) { console.error('InventoryManager init failed:', e); }
+        try { if (typeof DriveManager !== 'undefined') DriveManager.init(); } catch (e) { console.error('DriveManager init failed:', e); }
+        try { if (typeof ProjectsManager !== 'undefined') ProjectsManager.init(); } catch (e) { console.error('ProjectsManager init failed:', e); }
+        try { if (typeof ClientsManager !== 'undefined') ClientsManager.init(); } catch (e) { console.error('ClientsManager init failed:', e); }
+        try { if (typeof WikiManager !== 'undefined') WikiManager.init(); } catch (e) { console.error('WikiManager init failed:', e); }
+        try { if (typeof CommandPalette !== 'undefined') CommandPalette.init(); } catch (e) { console.error('CommandPalette init failed:', e); }
+        try { if (typeof AIAssistant !== 'undefined') AIAssistant.init(); } catch (e) { console.error('AIAssistant init failed:', e); }
 
         App.startDashboardClock();
         App.updateDashboardStats();
@@ -127,8 +127,8 @@ const App = {
     },
 
     initNavigation: () => {
-        const navItems  = document.querySelectorAll('.nav-item');
-        const sections  = document.querySelectorAll('.view-section');
+        const navItems = document.querySelectorAll('.nav-item');
+        const sections = document.querySelectorAll('.view-section');
 
         navItems.forEach(item => {
             item.addEventListener('click', (e) => {
@@ -155,33 +155,33 @@ const App = {
                 }
 
                 // Section-specific refresh
-                if (target === 'calendar')   CalendarManager.render();
-                if (target === 'dashboard')  App.updateDashboardStats();
+                if (target === 'calendar') CalendarManager.render();
+                if (target === 'dashboard') App.updateDashboardStats();
                 if (target === 'chat-section') {
                     ChatManager.render();
                     // Re-reveal UI if a chat was already selected
                     if (ChatManager.currentReceiverId) {
                         const h = document.querySelector('.chat-main-header');
                         const inp = document.querySelector('.chat-input-wrapper');
-                        if (h) { h.style.opacity='1'; h.style.pointerEvents='auto'; }
-                        if (inp) { inp.style.opacity='1'; inp.style.pointerEvents='auto'; }
+                        if (h) { h.style.opacity = '1'; h.style.pointerEvents = 'auto'; }
+                        if (inp) { inp.style.opacity = '1'; inp.style.pointerEvents = 'auto'; }
                     }
                 }
-                if (target === 'team')       TeamManager.render();
-                if (target === 'audit')      { if (typeof AuditManager !== 'undefined') AuditManager.render(); }
-                if (target === 'profile')    AuthManager.updateUserUI();
-                if (target === 'admin-panel') { 
+                if (target === 'team') TeamManager.render();
+                if (target === 'audit') { if (typeof AuditManager !== 'undefined') AuditManager.render(); }
+                if (target === 'profile') AuthManager.updateUserUI();
+                if (target === 'admin-panel') {
                     AdminPanel.refresh();
                     if (typeof SupportManager !== 'undefined') SupportManager.render();
                     if (typeof AuditManager !== 'undefined') AuditManager.render();
                 }
-                if (target === 'support')    { if (typeof SupportManager !== 'undefined') SupportManager.render(); }
-                if (target === 'drive')      { if (typeof DriveManager !== 'undefined') DriveManager.render(); }
-                if (target === 'projects')   { if (typeof ProjectsManager !== 'undefined') ProjectsManager.render(); }
-                if (target === 'clients')    { if (typeof ClientsManager !== 'undefined') ClientsManager.render(); }
-                if (target === 'inventory')  { if (typeof InventoryManager !== 'undefined') InventoryManager.render(); }
-                if (target === 'wiki')       { if (typeof WikiManager !== 'undefined') WikiManager.render(); }
-                if (target === 'finance')    { if (typeof FinanceManager !== 'undefined') { FinanceManager.renderExpenses(); FinanceManager.renderDebts(); } }
+                if (target === 'support') { if (typeof SupportManager !== 'undefined') SupportManager.render(); }
+                if (target === 'drive') { if (typeof DriveManager !== 'undefined') DriveManager.render(); }
+                if (target === 'projects') { if (typeof ProjectsManager !== 'undefined') ProjectsManager.render(); }
+                if (target === 'clients') { if (typeof ClientsManager !== 'undefined') ClientsManager.render(); }
+                if (target === 'inventory') { if (typeof InventoryManager !== 'undefined') InventoryManager.render(); }
+                if (target === 'wiki') { if (typeof WikiManager !== 'undefined') WikiManager.render(); }
+                if (target === 'finance') { if (typeof FinanceManager !== 'undefined') { FinanceManager.renderExpenses(); FinanceManager.renderDebts(); } }
 
                 // ── AI Widget: hide in chat to avoid button conflicts ──
                 const aiWidget = document.getElementById('ai-assistant-widget');
@@ -222,7 +222,7 @@ const App = {
         const sidebar = document.querySelector('.sidebar');
         const overlay = document.getElementById('sidebar-overlay');
         const bottomNavItems = document.querySelectorAll('.mobile-nav-item');
-        
+
         if (!sidebar) return;
 
         const openSidebar = () => {
@@ -454,17 +454,17 @@ const App = {
     },
 
     checkUpcomingEvents: () => {
-        const tasks  = Store.get('tasks')  || [];
+        const tasks = Store.get('tasks') || [];
         const events = Store.get('events') || [];
-        const todayStr    = new Date().toISOString().slice(0,10);
-        const tomorrowStr = new Date(Date.now() + 86400000).toISOString().slice(0,10);
+        const todayStr = new Date().toISOString().slice(0, 10);
+        const tomorrowStr = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
 
         const combined = [
             ...tasks.map(t => ({ title: t.title, date: t.deadline })),
             ...events.map(e => ({ title: e.title, date: e.date }))
         ];
 
-        const todayItems    = combined.filter(i => i.date === todayStr);
+        const todayItems = combined.filter(i => i.date === todayStr);
         const tomorrowItems = combined.filter(i => i.date === tomorrowStr);
 
         if (todayItems.length > 0) {
@@ -547,7 +547,7 @@ const App = {
                 if (hour < 12) greetKey = "Good morning, Director";
                 else if (hour < 18) greetKey = "Good afternoon, Director";
                 else greetKey = "Good evening, Director";
-                
+
                 greetingEl.textContent = LangManager.t(greetKey) + (document.documentElement.dir === 'rtl' ? '!' : '!');
             }
         };

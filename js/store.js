@@ -8,9 +8,10 @@
  * - Any Store.set() call is broadcast to all connected browsers instantly.
  */
 const Store = {
-    _syncing: false,    // Prevent update loop
-    _connected: false,  // Prevent duplicate Firestore listeners
+    _syncing: false,      // Prevent update loop
+    _connected: false,    // Prevent duplicate Firestore listeners
     _initialSyncDone: false, // Track if first cloud fetch is complete
+    _onlineUsers: [],     // ✅ FIX: Initialize as empty array (was undefined → crashed chat)
 
     /**
      * Connect to the real-time sync server.
@@ -33,7 +34,7 @@ const Store = {
 
 
             // ✅ Real-time Firestore Listeners for ALL collections
-            const collections = ['tasks', 'team', 'finance', 'audit_logs', 'messages', 'events', 'presence', 'users', 'workspace', 'projects', 'clients', 'inventory', 'chat_rooms', 'chat_invitations'];
+            const collections = ['tasks', 'team', 'finance', 'audit_logs', 'messages', 'events', 'presence', 'users', 'workspace', 'projects', 'clients', 'inventory', 'chat_rooms', 'chat_invitations', 'typing'];
             const loadedCollections = new Set();
             
             // 🕒 Faster Fallback: 3 seconds
@@ -167,8 +168,7 @@ const Store = {
                     if (typeof InventoryManager !== 'undefined') InventoryManager.render();
                     break;
                 default:
-                    // If it's a room message, refresh chat
-                    if (key.startsWith('room_msgs_')) {
+                    if (key.startsWith('room_msgs_') || key.startsWith('pm_')) {
                         if (typeof ChatManager !== 'undefined') ChatManager.render();
                     }
                     break;
@@ -213,8 +213,9 @@ const Store = {
             // 2. Sync to Firestore (Cloud)
             const PERSONAL_KEY_PREFIXES = ['savedMessages_', 'currentUser', 'wsInitialized'];
             const isPersonal = PERSONAL_KEY_PREFIXES.some(prefix => key.startsWith(prefix));
+            const isChatPersonal = key.startsWith('chat_unread'); // per-user, no sync
             
-            if (!isPersonal && typeof firebase !== 'undefined' && firebase.apps.length && !Store._syncing && AuthManager.currentUser) {
+            if (!isPersonal && !isChatPersonal && typeof firebase !== 'undefined' && firebase.apps.length && !Store._syncing && AuthManager.currentUser) {
                 const db = firebase.firestore();
                 const me = AuthManager.currentUser;
                 
@@ -237,6 +238,9 @@ const Store = {
                 let collectionName = collectionMap[key] || 'workspace';
                 if (key.startsWith('pm_') || key.startsWith('room_msgs_')) {
                     collectionName = 'messages';
+                }
+                if (key.startsWith('typing_')) {
+                    collectionName = 'typing';
                 }
 
                 db.collection(collectionName).doc(key).set({

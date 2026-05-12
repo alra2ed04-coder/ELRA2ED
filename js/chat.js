@@ -11,6 +11,9 @@ const ChatManager = {
     _pendingAttachment: null,
     _pendingRoomImg: null,
     _isSelfChat: false,
+    _isSending: false,
+    _typingTimeout: null,
+    _otherTypingTimeout: null,
 
     // ─── Storage Keys ─────────────────────────────────────────
     _getPrivateKey: (me, otherId) => `pm_${[me.id, otherId].sort().join('_')}`,
@@ -20,34 +23,63 @@ const ChatManager = {
     init: () => {
         ChatManager.bindTabEvents();
         ChatManager.bindSendEvent();
-        
+
         const activeTab = document.querySelector('.chat-tab.active');
         if (activeTab) {
             ChatManager.currentType = activeTab.dataset.type;
             ChatManager._styleActiveTab(activeTab);
         }
-        
+
         ChatManager.render();
+        setTimeout(() => { if (ChatManager._updateNavBadge) ChatManager._updateNavBadge(); }, 200);
 
         window.addEventListener('storeUpdated', (e) => {
             const key = e.detail?.key;
             const value = e.detail?.value;
-            
+
             if (key === 'chat_rooms' || key === 'chat_invitations' || key === 'team') {
                 ChatManager.render();
             }
-            
+
+            // Typing indicator from other user
+            if (key?.startsWith('typing_')) {
+                const me = AuthManager.currentUser;
+                if (!me) return;
+                const convKey = key.replace('typing_', '');
+                const myConvKey = ChatManager.currentReceiverId
+                    ? ChatManager._getPrivateKey(me, ChatManager.currentReceiverId)
+                    : null;
+                if (myConvKey === convKey && value && value.userId !== me.id) {
+                    const tyEl = document.getElementById('chat-typing-indicator');
+                    const tyText = document.getElementById('chat-typing-text');
+                    if (tyEl) {
+                        tyEl.style.display = 'flex';
+                        if (tyText) tyText.textContent = (value.userName || 'المستخدم') + ' يكتب الآن...';
+                        clearTimeout(ChatManager._otherTypingTimeout);
+                        ChatManager._otherTypingTimeout = setTimeout(() => { tyEl.style.display = 'none'; }, 4000);
+                    }
+                } else {
+                    // value is null/stale => hide
+                    const tyEl = document.getElementById('chat-typing-indicator');
+                    if (tyEl && myConvKey === convKey) tyEl.style.display = 'none';
+                }
+            }
+
             // Handle Room Message Notifications
             if (key?.startsWith('room_msgs_')) {
                 const roomId = key.replace('room_msgs_', '');
                 const msgs = value || [];
                 const lastMsg = msgs[msgs.length - 1];
                 const me = AuthManager.currentUser;
+                if (!me) return;
 
                 if (lastMsg && lastMsg.senderId !== me.id) {
                     if (ChatManager.currentReceiverId === roomId) {
                         ChatManager.renderMessages();
                     } else {
+                        ChatManager._incrementUnread(key);
+                        ChatManager._updateNavBadge();
+                        ChatManager._playSound();
                         NotificationManager.add(`💬 ${lastMsg.senderName}: ${lastMsg.content.substring(0, 30)}${lastMsg.content.length > 30 ? '...' : ''}`, 'fa-comments', 'message', roomId);
                     }
                 } else if (ChatManager.currentReceiverId === roomId) {
@@ -60,14 +92,23 @@ const ChatManager = {
                 const msgs = value || [];
                 const lastMsg = msgs[msgs.length - 1];
                 const me = AuthManager.currentUser;
+                if (!me) return;
 
                 if (lastMsg && lastMsg.senderId !== me.id) {
+                    const curKey = ChatManager.currentType === 'private' && ChatManager.currentReceiverId && !ChatManager._isSelfChat
+                        ? ChatManager._getPrivateKey(me, ChatManager.currentReceiverId) : null;
+                    const isActive = curKey === key && document.getElementById('chat-section')?.classList.contains('active');
+
                     // It's a message for me
-                    if (ChatManager.currentType === 'private' && ChatManager.currentReceiverId === lastMsg.senderId) {
+                    if (isActive) {
                         ChatManager.renderMessages();
                     } else {
+                        ChatManager._incrementUnread(key);
+                        ChatManager._updateNavBadge();
+                        ChatManager._playSound();
                         NotificationManager.add(`💬 رسالة جديدة من ${lastMsg.senderName}`, 'fa-comment', 'chat', lastMsg.senderId);
                     }
+                    ChatManager.loadUsers();
                 } else if (lastMsg && lastMsg.senderId === me.id) {
                     // It's a message I sent from another device or just confirming it
                     if (ChatManager.currentType === 'private') {
@@ -115,15 +156,15 @@ const ChatManager = {
                 ChatManager.currentReceiverName = null;
                 ChatManager._isSelfChat = false;
                 ChatManager.render();
-                
+
                 const header = document.getElementById('chat-active-name');
                 const addBtn = document.getElementById('chat-dynamic-add-btn');
                 const headerAvatar = document.getElementById('chat-active-avatar');
                 const statusEl = document.getElementById('chat-active-status');
-                
+
                 if (headerAvatar) headerAvatar.style.display = 'none';
                 if (statusEl) statusEl.innerHTML = '';
-                
+
                 if (ChatManager.currentType === 'group') {
                     header.textContent = LangManager.t('Groups');
                     if (addBtn) addBtn.style.display = 'flex';
@@ -211,19 +252,19 @@ const ChatManager = {
         const team = Store.get('team') || [];
         const me = AuthManager.currentUser;
         const cleanMeName = me?.name?.replace(/\s*\(.*?\)\s*/g, '') || 'Me';
-        
+
         sidebar.innerHTML = '';
 
         const selfDiv = document.createElement('div');
         selfDiv.className = 'chat-user-item';
         selfDiv.dataset.userId = me.id;
         if (ChatManager._isSelfChat) selfDiv.classList.add('selected');
-        
+
         // Fetch fresh avatar from Store instead of session snapshot
         const users = Store.get('users') || [];
         const freshMe = users.find(u => u.id === me.id) || me;
         const meAvatar = freshMe.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(cleanMeName)}&background=2563eb&color=fff&bold=true`;
-        
+
         selfDiv.innerHTML = `
             <img src="${meAvatar}" style="width:40px;height:40px;border-radius:50%;object-fit:cover;border:2px solid var(--primary-color);">
             <div style="flex:1;">
@@ -242,17 +283,19 @@ const ChatManager = {
         team.filter(m => m.id !== me?.id).forEach(member => {
             const cleanName = member.name.replace(/\s*\(.*?\)\s*/g, '');
             const avatar = member.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(cleanName)}&background=2563eb&color=fff&bold=true`;
-            const isOnline = Store._onlineUsers.includes(member.id);
+            const isOnline = (Store._onlineUsers || []).includes(member.id);
             const key = ChatManager._getPrivateKey(me, member.id);
             const lastMsgs = JSON.parse(localStorage.getItem(key) || '[]');
             const lastMsg = lastMsgs.length > 0 ? lastMsgs[lastMsgs.length - 1] : null;
-            
+
             const avatarUrl = member.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(member.name)}&background=random&color=fff`;
-            
+
             const div = document.createElement('div');
             div.className = 'chat-user-item';
             div.dataset.userId = member.id;
             if (ChatManager.currentReceiverId === member.id && !ChatManager._isSelfChat) div.classList.add('selected');
+            const pmKey = ChatManager._getPrivateKey(me, member.id);
+            const unread = ChatManager._getConvUnread ? ChatManager._getConvUnread(pmKey) : 0;
             div.innerHTML = `
                 <div style="position:relative; flex-shrink:0;">
                     <img src="${avatarUrl}" style="width:44px;height:44px;border-radius:50%;object-fit:cover;border:1.5px solid var(--border-color);">
@@ -261,7 +304,10 @@ const ChatManager = {
                 <div style="flex:1;min-width:0;">
                     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px;">
                         <div style="font-weight:700;font-size:0.95rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${member.name}</div>
-                        ${lastMsg ? `<span style="font-size:0.65rem;color:var(--text-secondary);">${new Date(lastMsg.timestamp).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</span>` : ''}
+                        <div style="display:flex;align-items:center;gap:4px;">
+                            ${lastMsg ? `<span style="font-size:0.65rem;color:var(--text-secondary);">${new Date(lastMsg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>` : ''}
+                            ${unread > 0 ? `<span style="background:#ef4444;color:#fff;font-size:0.6rem;font-weight:700;border-radius:50%;min-width:17px;height:17px;display:flex;align-items:center;justify-content:center;padding:0 3px;">${unread > 99 ? '99+' : unread}</span>` : ''}
+                        </div>
                     </div>
                     <div style="font-size:0.75rem;color:var(--text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;gap:4px;">
                         ${lastMsg && lastMsg.senderId === me.id ? '<i class="fas fa-check" style="font-size:0.6rem;opacity:0.5;"></i>' : ''}
@@ -283,15 +329,15 @@ const ChatManager = {
 
         sidebar.innerHTML = '';
         const filtered = rooms.filter(r => r.type === type && (r.members && r.members.includes(me.id)));
-        
+
         if (filtered.length === 0) {
             sidebar.innerHTML = `
                 <div style="padding:3rem 1.5rem; text-align:center; display:flex; flex-direction:column; align-items:center; gap:1.25rem; opacity:0.6;">
                     <div style="width:64px; height:64px; border-radius:18px; background:var(--bg-secondary); display:flex; align-items:center; justify-content:center; border:1px solid var(--border-color);">
-                        <i class="fas fa-${type==='broadcast'?'bullhorn':'users'}" style="font-size:1.8rem; color:var(--primary-color);"></i>
+                        <i class="fas fa-${type === 'broadcast' ? 'bullhorn' : 'users'}" style="font-size:1.8rem; color:var(--primary-color);"></i>
                     </div>
                     <div style="font-size:0.85rem; font-weight:600; line-height:1.4; color:var(--text-secondary);">
-                        ${type==='broadcast'?'لا توجد قنوات إخبارية متاحة حالياً':'لا توجد مجموعات عمل مشترك بها حالياً'}
+                        ${type === 'broadcast' ? 'لا توجد قنوات إخبارية متاحة حالياً' : 'لا توجد مجموعات عمل مشترك بها حالياً'}
                     </div>
                 </div>`;
             return;
@@ -315,7 +361,7 @@ const ChatManager = {
                             ${room.name}
                             ${room.type === 'broadcast' ? '<i class="fas fa-bullhorn" style="font-size:0.7rem;color:var(--primary-color);"></i>' : ''}
                         </span>
-                        ${lastMsg ? `<span style="font-size:0.65rem;color:var(--text-secondary);">${new Date(lastMsg.timestamp).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</span>` : ''}
+                        ${lastMsg ? `<span style="font-size:0.65rem;color:var(--text-secondary);">${new Date(lastMsg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>` : ''}
                     </div>
                     <div style="font-size:0.75rem;color:var(--text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
                         ${lastMsg ? `<b>${lastMsg.senderName.split(' ')[0]}:</b> ${lastMsg.content || '📁 ملف'}` : (room.desc || 'لا يوجد وصف')}
@@ -328,20 +374,29 @@ const ChatManager = {
                 ChatManager.currentReceiverId = room.id;
                 ChatManager.currentReceiverName = room.name;
                 document.getElementById('chat-active-name').textContent = room.name;
-                
+
                 // Update Header Avatar
                 const headerAvatar = document.getElementById('chat-active-avatar');
                 if (headerAvatar) {
                     headerAvatar.src = roomAvatar;
                     headerAvatar.style.display = 'block';
                 }
-                
+
                 // Reveal UI
                 const header = document.querySelector('.chat-main-header');
                 const inputArea = document.querySelector('.chat-input-wrapper');
                 if (header) { header.style.opacity = '1'; header.style.pointerEvents = 'auto'; }
                 if (inputArea) { inputArea.style.opacity = '1'; inputArea.style.pointerEvents = 'auto'; }
-                
+
+                // Clear unread for this room
+                const roomKey = ChatManager._getRoomKey(room.id);
+                ChatManager._clearUnread(roomKey);
+                ChatManager._updateNavBadge();
+
+                // Hide typing indicator
+                const tyEl = document.getElementById('chat-typing-indicator');
+                if (tyEl) tyEl.style.display = 'none';
+
                 ChatManager.renderMessages();
             };
             sidebar.appendChild(div);
@@ -356,6 +411,20 @@ const ChatManager = {
         ChatManager.currentReceiverName = name;
         ChatManager._isSelfChat = isSelf;
         document.getElementById('chat-active-name').textContent = name;
+
+        // Hide typing indicator when switching conversations
+        const tyEl = document.getElementById('chat-typing-indicator');
+        if (tyEl) tyEl.style.display = 'none';
+
+        // Clear unread for this conversation
+        if (!isSelf) {
+            const me = AuthManager.currentUser;
+            if (me) {
+                const convKey = ChatManager._getPrivateKey(me, id);
+                ChatManager._clearUnread(convKey);
+                ChatManager._updateNavBadge();
+            }
+        }
 
         // Update Header Avatar
         const headerAvatar = document.getElementById('chat-active-avatar');
@@ -372,7 +441,7 @@ const ChatManager = {
             if (isSelf) {
                 statusEl.innerHTML = `<i class="fas fa-bookmark" style="font-size:0.65rem;"></i> ${LangManager.t('My Profile')}`;
             } else {
-                const isOnline = Store._onlineUsers.includes(id);
+                const isOnline = (Store._onlineUsers || []).includes(id);
                 statusEl.innerHTML = isOnline
                     ? `<span style="width:7px;height:7px;border-radius:50%;background:var(--success);display:inline-block;"></span> ${LangManager.t('Active')}`
                     : `<span style="width:7px;height:7px;border-radius:50%;background:var(--text-secondary);display:inline-block;"></span> ${LangManager.t('Planning')}`;
@@ -394,7 +463,7 @@ const ChatManager = {
     _updateActiveStatus: (id) => {
         const statusEl = document.getElementById('chat-active-status');
         if (!statusEl) return;
-        const isOnline = Store._onlineUsers.includes(id);
+        const isOnline = (Store._onlineUsers || []).includes(id);
         statusEl.innerHTML = isOnline
             ? `<span style="width:7px;height:7px;border-radius:50%;background:var(--success);display:inline-block;"></span> ${LangManager.t('Active')}`
             : `<span style="width:7px;height:7px;border-radius:50%;background:var(--text-secondary);display:inline-block;"></span> ${LangManager.t('Planning')}`;
@@ -405,23 +474,23 @@ const ChatManager = {
         const modal = document.getElementById('chat-room-modal');
         const title = document.getElementById('room-modal-title');
         const typeHidden = document.getElementById('room-type-hidden');
-        
+
         typeHidden.value = type;
         title.innerHTML = type === 'group' ? '<i class="fas fa-users"></i> إنشاء جروب جديد' : '<i class="fas fa-bullhorn"></i> إنشاء قناة إخبارية';
-        
+
         modal.classList.remove('hidden');
-        
+
         const list = document.getElementById('room-members-list');
         const team = Store.get('team') || [];
         const me = AuthManager.currentUser;
-        
+
         list.innerHTML = '';
         team.filter(m => m.id !== me.id).forEach(member => {
             const label = document.createElement('label');
             label.className = 'member-check-item';
             label.style.cssText = 'display:flex;align-items:center;gap:0.75rem;padding:0.6rem;background:var(--bg-primary);border-radius:8px;cursor:pointer;border:1px solid var(--border-color);';
             label.innerHTML = `
-                <img src="${member.avatar || 'https://ui-avatars.com/api/?name='+member.name}" style="width:24px;height:24px;border-radius:50%;">
+                <img src="${member.avatar || 'https://ui-avatars.com/api/?name=' + member.name}" style="width:24px;height:24px;border-radius:50%;">
                 <span style="flex:1;font-size:0.85rem;">${member.name}</span>
                 <input type="checkbox" name="room-member" value="${member.id}">
             `;
@@ -458,7 +527,7 @@ const ChatManager = {
         if (!name) { alert('برجاء إدخال اسم المساحة'); return; }
 
         const selectedIds = Array.from(document.querySelectorAll('input[name="room-member"]:checked')).map(cb => cb.value);
-        
+
         const roomId = 'room_' + Date.now();
         const rooms = Store.get('chat_rooms') || [];
         const newRoom = {
@@ -495,12 +564,12 @@ const ChatManager = {
         ChatManager.currentType = type;
         const btn = document.querySelector(`.chat-tab[data-type="${type}"]`);
         if (btn) ChatManager._styleActiveTab(btn);
-        
+
         ChatManager.currentReceiverId = roomId;
         ChatManager.currentReceiverName = name;
         ChatManager.render();
-        
-        alert(`تم إنشاء ال${type==='group'?'جروب':'قناة'} وإرسال ${selectedIds.length} دعوة.`);
+
+        alert(`تم إنشاء ال${type === 'group' ? 'جروب' : 'قناة'} وإرسال ${selectedIds.length} دعوة.`);
     },
 
     // ─── Messages Logic ───────────────────────────────────────
@@ -557,10 +626,10 @@ const ChatManager = {
         }
 
         const rooms = Store.get('chat_rooms') || [];
-        const room  = rooms.find(r => r.id === ChatManager.currentReceiverId);
+        const room = rooms.find(r => r.id === ChatManager.currentReceiverId);
         const input = document.getElementById('chat-input');
         const sendBtn = document.getElementById('btn-send-msg');
-        
+
         if (room && room.type === 'broadcast') {
             const isAdmin = me.role === 'Super Admin' || me.role === 'Manager';
             if (!isAdmin) {
@@ -593,11 +662,11 @@ const ChatManager = {
         messages.forEach((msg, index) => {
             const isMe = msg.senderId === me?.id;
             const time = new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-            
+
             const div = document.createElement('div');
             div.className = `msg-wrapper ${isMe ? 'msg-sent' : 'msg-received'}`;
             div.style.animationDelay = `${index * 0.05}s`;
-            
+
             let attachmentHtml = '';
             if (msg.attachment) {
                 const att = msg.attachment;
@@ -609,7 +678,7 @@ const ChatManager = {
             }
 
             div.innerHTML = `
-                <img src="${msg.senderAvatar || 'https://ui-avatars.com/api/?name='+msg.senderName}" class="msg-avatar">
+                <img src="${msg.senderAvatar || 'https://ui-avatars.com/api/?name=' + msg.senderName}" class="msg-avatar">
                 <div style="max-width:75%; transform: scale(0.9); opacity: 0; animation: msgFadeIn 0.3s forwards;">
                     ${!isMe && ChatManager.currentType !== 'private' ? `<div style="font-size:0.75rem;color:var(--text-secondary);margin-bottom:0.4rem;font-weight:700;margin-right:0.5rem;display:flex;align-items:center;gap:4px;"><i class="fas fa-user-circle" style="font-size:0.8rem;opacity:0.5;"></i> ${msg.senderName}</div>` : ''}
                     <div class="msg-bubble">
@@ -624,7 +693,7 @@ const ChatManager = {
             `;
             container.appendChild(div);
         });
-        
+
         // Smooth scroll to bottom
         container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
     },
@@ -635,14 +704,19 @@ const ChatManager = {
         if (!btn || !input) return;
 
         const send = () => {
+            if (ChatManager._isSending) return;
             const content = input.value.trim();
             const att = ChatManager._pendingAttachment;
             if (!content && !att) return;
             if (!ChatManager.currentReceiverId) return;
 
+            ChatManager._isSending = true;
+            btn.disabled = true;
+
             const me = AuthManager.currentUser;
+            const msgId = 'msg_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
             const msg = {
-                id: 'msg_' + Date.now(),
+                id: msgId,
                 senderId: me.id,
                 senderName: me.name,
                 senderAvatar: me.avatar,
@@ -651,26 +725,45 @@ const ChatManager = {
                 timestamp: new Date().toISOString()
             };
 
-            const msgs = ChatManager.getMessages();
-            msgs.push(msg);
-            ChatManager.saveMessages(msgs);
+            // Clear typing indicator
+            if (ChatManager.currentType === 'private' && !ChatManager._isSelfChat && ChatManager.currentReceiverId) {
+                const convKey = ChatManager._getPrivateKey(me, ChatManager.currentReceiverId);
+                Store.set('typing_' + convKey, null);
+            }
 
-            if (ChatManager.currentType === 'private' && !ChatManager._isSelfChat) {
-                // Now handled by Store.set in saveMessages
+            const msgs = ChatManager.getMessages();
+            // Dedup: don't add if same id already exists
+            if (!msgs.find(m => m.id === msgId)) {
+                msgs.push(msg);
+                ChatManager.saveMessages(msgs);
             }
 
             input.value = '';
             ChatManager._pendingAttachment = null;
-            document.getElementById('chat-attachment-preview').style.display = 'none';
+            const prev = document.getElementById('chat-attachment-preview');
+            if (prev) prev.style.display = 'none';
             ChatManager.renderMessages();
+
+            setTimeout(() => {
+                ChatManager._isSending = false;
+                btn.disabled = false;
+            }, 500);
         };
 
+        // Typing indicator emit
         input.addEventListener('input', () => {
-            // Typing logic removed for now
+            const me = AuthManager.currentUser;
+            if (!me || ChatManager.currentType !== 'private' || ChatManager._isSelfChat || !ChatManager.currentReceiverId) return;
+            const convKey = ChatManager._getPrivateKey(me, ChatManager.currentReceiverId);
+            Store.set('typing_' + convKey, { userId: me.id, userName: me.name, timestamp: Date.now() });
+            clearTimeout(ChatManager._typingTimeout);
+            ChatManager._typingTimeout = setTimeout(() => {
+                Store.set('typing_' + convKey, null);
+            }, 3000);
         });
 
         btn.onclick = send;
-        input.onkeydown = (e) => { if (e.key === 'Enter') send(); };
+        input.onkeydown = (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } };
     },
 
     handleFileSelect: (input) => {
@@ -715,6 +808,67 @@ const ChatManager = {
 
         ChatManager.renderMessages();
         NotificationManager.add(LangManager.t('Delete Conversation'), 'fa-trash', 'chat');
+    },
+
+    // ─── Unread Counter ──────────────────────────────────────────────
+    _incrementUnread: (convKey) => {
+        const data = JSON.parse(localStorage.getItem('chat_unread') || '{}');
+        data[convKey] = (data[convKey] || 0) + 1;
+        localStorage.setItem('chat_unread', JSON.stringify(data));
+    },
+
+    _clearUnread: (convKey) => {
+        const data = JSON.parse(localStorage.getItem('chat_unread') || '{}');
+        delete data[convKey];
+        localStorage.setItem('chat_unread', JSON.stringify(data));
+    },
+
+    _getTotalUnread: () => {
+        const data = JSON.parse(localStorage.getItem('chat_unread') || '{}');
+        return Object.values(data).reduce((s, v) => s + v, 0);
+    },
+
+    _getConvUnread: (convKey) => {
+        const data = JSON.parse(localStorage.getItem('chat_unread') || '{}');
+        return data[convKey] || 0;
+    },
+
+    // ─── Nav Badge ────────────────────────────────────────────────────
+    _updateNavBadge: () => {
+        const total = ChatManager._getTotalUnread();
+        const navItem = document.querySelector('.nav-item[data-target="chat-section"]');
+        if (!navItem) return;
+        let badge = navItem.querySelector('.chat-nav-badge');
+        if (total > 0) {
+            if (!badge) {
+                badge = document.createElement('span');
+                badge.className = 'chat-nav-badge';
+                badge.style.cssText = 'position:absolute;top:4px;right:4px;background:#ef4444;color:#fff;font-size:0.65rem;font-weight:700;border-radius:50%;min-width:18px;height:18px;display:flex;align-items:center;justify-content:center;padding:0 3px;';
+                navItem.style.position = 'relative';
+                navItem.appendChild(badge);
+            }
+            badge.textContent = total > 99 ? '99+' : total;
+        } else {
+            if (badge) badge.remove();
+        }
+    },
+
+    // ─── Sound Notification ──────────────────────────────────────────────
+    _playSound: () => {
+        try {
+            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(880, ctx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(440, ctx.currentTime + 0.15);
+            gain.gain.setValueAtTime(0.25, ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
+            osc.start(ctx.currentTime);
+            osc.stop(ctx.currentTime + 0.3);
+        } catch (e) { /* audio blocked until first user gesture */ }
     }
 };
 
@@ -725,6 +879,11 @@ _chatStyles.textContent = `
     .chat-user-item.selected { background:rgba(37,99,235,0.09) !important; border-inline-end-color:var(--primary-color); }
     .member-check-item:hover { background:rgba(37,99,235,0.05) !important; border-color:var(--primary-color) !important; }
     @keyframes msgFadeIn { from{opacity:0;transform:scale(0.92)} to{opacity:1;transform:scale(1)} }
+    .typing-dots span { display:inline-block;width:5px;height:5px;border-radius:50%;background:var(--text-secondary);margin:0 1px;animation:typingBounce 1s infinite ease-in-out; }
+    .typing-dots span:nth-child(2){animation-delay:.15s} .typing-dots span:nth-child(3){animation-delay:.3s}
+    @keyframes typingBounce{0%,80%,100%{transform:translateY(0)}40%{transform:translateY(-5px)}}
+    #chat-typing-indicator{display:none;padding:0.4rem 1.25rem;align-items:center;gap:6px;min-height:24px;}
+
 `;
 document.head.appendChild(_chatStyles);
 
