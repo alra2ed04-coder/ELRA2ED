@@ -732,14 +732,39 @@ const ChatManager = {
             // Dedup: don't add if same id already exists
             if (!msgs.find(m => m.id === msgId)) {
                 msgs.push(msg);
-                ChatManager.saveMessages(msgs);
+                
+                if (ChatManager.currentType === 'private' && ChatManager._isSelfChat) {
+                    localStorage.setItem(ChatManager._getSelfKey(me), JSON.stringify(msgs));
+                } else {
+                    const key = ChatManager.currentType === 'private' 
+                        ? ChatManager._getPrivateKey(me, ChatManager.currentReceiverId)
+                        : ChatManager._getRoomKey(ChatManager.currentReceiverId);
+                    
+                    // Fast local cache update
+                    localStorage.setItem(key, JSON.stringify(msgs));
+                    
+                    // Safe Cloud Update using arrayUnion
+                    if (typeof firebase !== 'undefined' && firebase.apps.length) {
+                        firebase.firestore().collection('messages').doc(key).set({
+                            value: firebase.firestore.FieldValue.arrayUnion(msg),
+                            updatedBy: me.id,
+                            userName: me.name,
+                            timestamp: Date.now()
+                        }, { merge: true });
+                    }
+                }
             }
 
             input.value = '';
             ChatManager._pendingAttachment = null;
+
             const prev = document.getElementById('chat-attachment-preview');
             if (prev) prev.style.display = 'none';
             ChatManager.renderMessages();
+            
+            // Instantly update the sidebar list
+            if (ChatManager.currentType === 'private') ChatManager.loadUsers();
+            else ChatManager.loadRooms();
 
             setTimeout(() => {
                 ChatManager._isSending = false;
