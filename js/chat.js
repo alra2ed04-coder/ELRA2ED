@@ -678,7 +678,7 @@ const ChatManager = {
                 <img src="${msg.senderAvatar || 'https://ui-avatars.com/api/?name=' + msg.senderName}" class="msg-avatar">
                 <div style="max-width:75%; transform: scale(0.9); opacity: 0; animation: msgFadeIn 0.3s forwards;">
                     ${!isMe && ChatManager.currentType !== 'private' ? `<div style="font-size:0.75rem;color:var(--text-secondary);margin-bottom:0.4rem;font-weight:700;margin-right:0.5rem;display:flex;align-items:center;gap:4px;"><i class="fas fa-user-circle" style="font-size:0.8rem;opacity:0.5;"></i> ${msg.senderName}</div>` : ''}
-                    <div class="msg-bubble">
+                    <div class="msg-bubble" onclick="ChatManager.showMsgMenu(event, '${msg.id}', ${isMe})" style="cursor:pointer; position:relative;" title="انقر للخيارات">
                         ${attachmentHtml}
                         <div class="msg-content" style="word-break:break-word;">${msg.content || ''}</div>
                         <div class="msg-info" style="display:flex;justify-content:flex-end;align-items:center;gap:6px;margin-top:4px;font-size:0.65rem;opacity:0.7;">
@@ -830,6 +830,172 @@ const ChatManager = {
 
         ChatManager.renderMessages();
         NotificationManager.add(LangManager.t('Delete Conversation'), 'fa-trash', 'chat');
+    },
+
+    
+    // ─── Message Context Menu & Actions ─────────────────────────
+    showMsgMenu: (e, msgId, isMe) => {
+        document.querySelectorAll('.chat-msg-menu').forEach(m => m.remove());
+        
+        const menu = document.createElement('div');
+        menu.className = 'chat-msg-menu glass-effect';
+        menu.style.cssText = `
+            position: fixed; top: ${e.clientY}px; left: ${e.clientX}px;
+            background: var(--bg-secondary); border: 1px solid var(--border-color);
+            border-radius: 8px; padding: 0.5rem; z-index: 10002;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5); display: flex; flex-direction: column; gap: 4px; min-width: 150px;
+        `;
+
+        const createBtn = (icon, text, color, onclick) => {
+            const btn = document.createElement('button');
+            btn.innerHTML = `<i class="fas ${icon}" style="width:20px;"></i> ${text}`;
+            btn.style.cssText = `
+                background: transparent; border: none; color: ${color}; text-align: right;
+                padding: 0.5rem 0.75rem; border-radius: 4px; cursor: pointer; font-size: 0.85rem;
+                display: flex; align-items: center; gap: 8px; transition: background 0.2s;
+            `;
+            btn.onmouseover = () => btn.style.background = 'rgba(255,255,255,0.05)';
+            btn.onmouseout = () => btn.style.background = 'transparent';
+            btn.onclick = () => { onclick(); menu.remove(); };
+            return btn;
+        };
+
+        menu.appendChild(createBtn('fa-copy', 'نسخ النص', 'var(--text-primary)', () => ChatManager.copyMessage(msgId)));
+        menu.appendChild(createBtn('fa-share', 'توجيه الرسالة', 'var(--primary-color)', () => ChatManager.forwardMessage(msgId)));
+
+        if (isMe) {
+            menu.appendChild(createBtn('fa-pen', 'تعديل الرسالة', 'var(--warning)', () => ChatManager.editMessage(msgId)));
+        }
+        
+        // Deleting is available for all messages in the local chat view
+        menu.appendChild(createBtn('fa-trash', 'حذف الرسالة', 'var(--danger)', () => ChatManager.deleteMessage(msgId)));
+
+        document.body.appendChild(menu);
+
+        setTimeout(() => {
+            document.addEventListener('click', function closeMenu(ev) {
+                if (!menu.contains(ev.target)) {
+                    menu.remove();
+                    document.removeEventListener('click', closeMenu);
+                }
+            });
+        }, 10);
+    },
+
+    _getMsgAndKey: (msgId) => {
+        const me = AuthManager.currentUser;
+        const key = ChatManager.currentType === 'private'
+            ? (ChatManager._isSelfChat ? ChatManager._getSelfKey(me) : ChatManager._getPrivateKey(me, ChatManager.currentReceiverId))
+            : ChatManager._getRoomKey(ChatManager.currentReceiverId);
+        
+        const msgs = JSON.parse(localStorage.getItem(key) || '[]');
+        const msg = msgs.find(m => m.id === msgId);
+        return { msg, msgs, key };
+    },
+
+    copyMessage: (msgId) => {
+        const { msg } = ChatManager._getMsgAndKey(msgId);
+        if (msg && msg.content) {
+            navigator.clipboard.writeText(msg.content);
+            NotificationManager.add('تم نسخ الرسالة بنجاح', 'fa-copy', 'system');
+        }
+    },
+
+    deleteMessage: (msgId) => {
+        if (!confirm('هل أنت متأكد من حذف هذه الرسالة من المحادثة؟')) return;
+        const { msgs, key } = ChatManager._getMsgAndKey(msgId);
+        const newMsgs = msgs.filter(m => m.id !== msgId);
+        ChatManager._updateFirebaseMessages(key, newMsgs);
+        ChatManager.renderMessages();
+    },
+
+    editMessage: (msgId) => {
+        const { msg, msgs, key } = ChatManager._getMsgAndKey(msgId);
+        if (!msg || !msg.content) return;
+        const newText = prompt('تعديل الرسالة:', msg.content.replace(' (معدلة)', ''));
+        if (newText !== null && newText.trim() !== '') {
+            msg.content = newText.trim() + ' (معدلة)';
+            ChatManager._updateFirebaseMessages(key, msgs);
+            ChatManager.renderMessages();
+        }
+    },
+
+    _updateFirebaseMessages: (key, newMsgs) => {
+        localStorage.setItem(key, JSON.stringify(newMsgs));
+        if (!key.startsWith('savedMessages_') && typeof firebase !== 'undefined' && firebase.apps.length) {
+            const me = AuthManager.currentUser;
+            firebase.firestore().collection('messages').doc(key).set({
+                value: newMsgs,
+                updatedBy: me.id,
+                userName: me.name,
+                timestamp: Date.now()
+            });
+        }
+    },
+
+    forwardMessage: (msgId) => {
+        const { msg } = ChatManager._getMsgAndKey(msgId);
+        if (!msg) return;
+        
+        const modal = document.createElement('div');
+        modal.className = 'modal';
+        modal.style.zIndex = '10005';
+        modal.innerHTML = `
+            <div class="modal-content glass-effect" style="max-width:400px;">
+                <div class="modal-header">
+                    <h2><i class="fa fa-share"></i> توجيه الرسالة إلى...</h2>
+                    <button class="close-modal" onclick="this.closest('.modal').remove()"><i class="fas fa-times"></i></button>
+                </div>
+                <div class="modal-body" style="max-height:400px; overflow-y:auto;">
+                    <div id="forward-list" style="display:flex;flex-direction:column;gap:8px;"></div>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+
+        const list = modal.querySelector('#forward-list');
+        const team = Store.get('team') || [];
+        const me = AuthManager.currentUser;
+
+        team.filter(m => m.id !== me.id).forEach(member => {
+            const btn = document.createElement('div');
+            btn.style.cssText = 'padding:12px; background:rgba(255,255,255,0.05); border-radius:12px; display:flex; align-items:center; gap:12px; cursor:pointer; border:1px solid var(--border-color); transition:background 0.2s;';
+            btn.onmouseover = () => btn.style.background = 'rgba(37,99,235,0.1)';
+            btn.onmouseout = () => btn.style.background = 'rgba(255,255,255,0.05)';
+            btn.innerHTML = `<img src="${member.avatar || 'https://ui-avatars.com/api/?name='+member.name}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;"> <span style="font-weight:600;font-size:0.9rem;">${member.name}</span>`;
+            btn.onclick = () => {
+                ChatManager._doForward(msg, ChatManager._getPrivateKey(me, member.id), member.name);
+                modal.remove();
+            };
+            list.appendChild(btn);
+        });
+    },
+
+    _doForward: (originalMsg, targetKey, targetName) => {
+        const me = AuthManager.currentUser;
+        const newMsg = {
+            id: 'msg_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
+            senderId: me.id,
+            senderName: me.name,
+            senderAvatar: me.avatar,
+            content: (originalMsg.content || '') + '<br><br><span style="font-size:0.7rem;opacity:0.6;background:rgba(0,0,0,0.2);padding:2px 6px;border-radius:4px;"><i class="fas fa-share"></i> رسالة موجهة</span>',
+            attachment: originalMsg.attachment,
+            timestamp: new Date().toISOString()
+        };
+        
+        const msgs = JSON.parse(localStorage.getItem(targetKey) || '[]');
+        msgs.push(newMsg);
+        localStorage.setItem(targetKey, JSON.stringify(msgs));
+        
+        if (typeof firebase !== 'undefined' && firebase.apps.length) {
+            firebase.firestore().collection('messages').doc(targetKey).set({
+                value: firebase.firestore.FieldValue.arrayUnion(newMsg),
+                updatedBy: me.id,
+                userName: me.name,
+                timestamp: Date.now()
+            }, { merge: true });
+        }
+        NotificationManager.add('تم توجيه الرسالة بنجاح إلى ' + targetName, 'fa-check-circle', 'system');
     },
 
     // ─── Unread Counter (Timestamp-based) ─────────────────────────
